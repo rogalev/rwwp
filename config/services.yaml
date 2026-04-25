@@ -48,13 +48,9 @@ services:
             $timeout: '%parser.http_timeout%'
             $maxDuration: '%parser.http_max_duration%'
 
-    App\Command\ListingFetchCommand:
+    App\Listing\ArticleListingProviderRegistry:
         arguments:
-            $listingProviders: !tagged_iterator app.article_listing_provider
-
-    App\Command\ListingProcessCommand:
-        arguments:
-            $listingProviders: !tagged_iterator app.article_listing_provider
+            $providers: !tagged_iterator app.article_listing_provider
 
     App\Listing\RssArticleListingProvider:
         tags:

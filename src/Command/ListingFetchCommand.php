@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Listing\ArticleListingProviderInterface;
+use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -20,11 +20,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class ListingFetchCommand extends Command
 {
-    /**
-     * @param iterable<ArticleListingProviderInterface> $listingProviders
-     */
     public function __construct(
-        private readonly iterable $listingProviders,
+        private readonly ArticleListingProviderRegistry $listingProviderRegistry,
     ) {
         parent::__construct();
     }
@@ -48,7 +45,7 @@ final class ListingFetchCommand extends Command
             categoryCode: (string) $input->getArgument('category'),
             url: (string) $input->getArgument('url'),
         );
-        $provider = $this->providerFor($source);
+        $provider = $this->listingProviderRegistry->providerFor($source);
         $rows = [];
 
         foreach ($provider->fetchArticleRefs($source) as $articleRef) {
@@ -64,16 +61,5 @@ final class ListingFetchCommand extends Command
         $io->success(sprintf('Found %d article reference(s).', count($rows)));
 
         return Command::SUCCESS;
-    }
-
-    private function providerFor(ListingSource $source): ArticleListingProviderInterface
-    {
-        foreach ($this->listingProviders as $provider) {
-            if ($provider->supports($source)) {
-                return $provider;
-            }
-        }
-
-        throw new \RuntimeException(sprintf('No listing provider supports "%s".', $source->type->value));
     }
 }
