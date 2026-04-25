@@ -39,6 +39,9 @@ services:
     App\Http\UserAgentProviderInterface:
         alias: App\Http\RotatingUserAgentProvider
 
+    App\Url\UrlNormalizerInterface:
+        alias: App\Url\TrackingQueryUrlNormalizer
+
     App\Http\RotatingUserAgentProvider:
         arguments:
             $userAgents: '%parser.http_user_agents%'

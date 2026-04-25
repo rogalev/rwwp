@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Listing;
 
 use App\Http\DocumentFetcherInterface;
+use App\Url\UrlNormalizerInterface;
 
 final readonly class RssArticleListingProvider implements ArticleListingProviderInterface
 {
     public function __construct(
         private DocumentFetcherInterface $documentFetcher,
+        private UrlNormalizerInterface $urlNormalizer,
     ) {
     }
 
@@ -29,7 +31,7 @@ final readonly class RssArticleListingProvider implements ArticleListingProvider
         $seenUrls = [];
 
         foreach ($rss->channel->item ?? [] as $item) {
-            $externalUrl = trim((string) $item->link);
+            $externalUrl = $this->urlNormalizer->normalize(trim((string) $item->link));
 
             if ($externalUrl === '' || isset($seenUrls[$externalUrl])) {
                 continue;
