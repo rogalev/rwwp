@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Article\ArticleParserInterface;
+use App\Article\ArticleParserRegistry;
 use App\Listing\ExternalArticleRef;
 use App\Listing\ListingSourceType;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -20,11 +20,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class ArticleParseCommand extends Command
 {
-    /**
-     * @param iterable<ArticleParserInterface> $articleParsers
-     */
     public function __construct(
-        private readonly iterable $articleParsers,
+        private readonly ArticleParserRegistry $articleParserRegistry,
     ) {
         parent::__construct();
     }
@@ -47,7 +44,7 @@ final class ArticleParseCommand extends Command
             categoryCode: (string) $input->getArgument('category'),
             listingSourceType: ListingSourceType::RssFeed,
         );
-        $article = $this->parserFor($ref)->parse($ref);
+        $article = $this->articleParserRegistry->parserFor($ref)->parse($ref);
 
         $io->definitionList(
             ['Title' => $article->title],
@@ -58,16 +55,5 @@ final class ArticleParseCommand extends Command
         );
 
         return Command::SUCCESS;
-    }
-
-    private function parserFor(ExternalArticleRef $ref): ArticleParserInterface
-    {
-        foreach ($this->articleParsers as $parser) {
-            if ($parser->supports($ref)) {
-                return $parser;
-            }
-        }
-
-        throw new \RuntimeException(sprintf('No article parser supports "%s".', $ref->externalUrl));
     }
 }
