@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Article\ArticleParserRegistry;
 use App\Listing\ArticleListingProviderRegistry;
-use App\Listing\ExternalArticleRef;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
+use App\Pipeline\ArticleRefProcessor;
 use App\State\SeenArticleStoreInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -26,7 +25,7 @@ final class RssParseNewCommand extends Command
 {
     public function __construct(
         private readonly ArticleListingProviderRegistry $listingProviderRegistry,
-        private readonly ArticleParserRegistry $articleParserRegistry,
+        private readonly ArticleRefProcessor $articleRefProcessor,
         private readonly SeenArticleStoreInterface $seenArticleStore,
     ) {
         parent::__construct();
@@ -67,7 +66,7 @@ final class RssParseNewCommand extends Command
             }
 
             $this->seenArticleStore->markSeen($articleRef->externalUrl, $articleRef->sourceCode, $articleRef->categoryCode);
-            $rows[] = $this->processArticleRef($articleRef);
+            $rows[] = $this->articleRefProcessor->process($articleRef)->toTableRow();
             ++$processed;
 
             if ($processed >= $limit) {
@@ -84,48 +83,5 @@ final class RssParseNewCommand extends Command
         );
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * @return array{0: string, 1: string, 2: string, 3: string, 4: string}
-     */
-    private function processArticleRef(ExternalArticleRef $articleRef): array
-    {
-        try {
-            $parser = $this->articleParserRegistry->parserFor($articleRef);
-        } catch (\RuntimeException $exception) {
-            $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
-
-            return [
-                'SKIPPED_UNSUPPORTED',
-                $articleRef->externalUrl,
-                '',
-                '',
-                $exception->getMessage(),
-            ];
-        }
-
-        try {
-            $article = $parser->parse($articleRef);
-            $this->seenArticleStore->markParsed($articleRef->externalUrl);
-
-            return [
-                'PARSED',
-                $articleRef->externalUrl,
-                $article->title,
-                (string) $article->contentLength(),
-                '',
-            ];
-        } catch (\Throwable $exception) {
-            $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
-
-            return [
-                'FAILED',
-                $articleRef->externalUrl,
-                '',
-                '',
-                $exception->getMessage(),
-            ];
-        }
     }
 }
