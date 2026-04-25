@@ -52,6 +52,10 @@ services:
         arguments:
             $listingProviders: !tagged_iterator app.article_listing_provider
 
+    App\Command\ListingProcessCommand:
+        arguments:
+            $listingProviders: !tagged_iterator app.article_listing_provider
+
     App\Listing\RssArticleListingProvider:
         tags:
             - { name: app.article_listing_provider }
