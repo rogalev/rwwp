@@ -47,3 +47,11 @@ services:
         arguments:
             $timeout: '%parser.http_timeout%'
             $maxDuration: '%parser.http_max_duration%'
+
+    App\Command\ListingFetchCommand:
+        arguments:
+            $listingProviders: !tagged_iterator app.article_listing_provider
+
+    App\Listing\RssArticleListingProvider:
+        tags:
+            - { name: app.article_listing_provider }
