@@ -8,6 +8,9 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     parser.state_dsn: '%env(resolve:PARSER_STATE_DSN)%'
+    parser.http_timeout: '%env(float:PARSER_HTTP_TIMEOUT)%'
+    parser.http_max_duration: '%env(float:PARSER_HTTP_MAX_DURATION)%'
+    parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
 
 services:
     # default configuration for services in *this* file
@@ -29,3 +32,18 @@ services:
     App\State\SqliteSeenArticleStore:
         arguments:
             $dsn: '%parser.state_dsn%'
+
+    App\Http\DocumentFetcherInterface:
+        alias: App\Http\SymfonyHttpDocumentFetcher
+
+    App\Http\UserAgentProviderInterface:
+        alias: App\Http\RotatingUserAgentProvider
+
+    App\Http\RotatingUserAgentProvider:
+        arguments:
+            $userAgents: '%parser.http_user_agents%'
+
+    App\Http\SymfonyHttpDocumentFetcher:
+        arguments:
+            $timeout: '%parser.http_timeout%'
+            $maxDuration: '%parser.http_max_duration%'
