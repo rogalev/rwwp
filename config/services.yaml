@@ -58,3 +58,11 @@ services:
     App\Listing\RssArticleListingProvider:
         tags:
             - { name: app.article_listing_provider }
+
+    App\Command\ArticleParseCommand:
+        arguments:
+            $articleParsers: !tagged_iterator app.article_parser
+
+    App\Article\BbcArticleParser:
+        tags:
+            - { name: app.article_parser }
