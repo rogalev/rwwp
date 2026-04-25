@@ -6,12 +6,14 @@ namespace App\Pipeline;
 
 use App\Article\ArticleParserRegistry;
 use App\Listing\ExternalArticleRef;
+use App\Output\ParsedArticleSinkInterface;
 use App\State\SeenArticleStoreInterface;
 
 final readonly class ArticleRefProcessor
 {
     public function __construct(
         private ArticleParserRegistry $articleParserRegistry,
+        private ParsedArticleSinkInterface $parsedArticleSink,
         private SeenArticleStoreInterface $seenArticleStore,
     ) {
     }
@@ -32,6 +34,7 @@ final readonly class ArticleRefProcessor
 
         try {
             $article = $parser->parse($articleRef);
+            $this->parsedArticleSink->write($article);
             $this->seenArticleStore->markParsed($articleRef->externalUrl);
 
             return new ArticleProcessingResult(

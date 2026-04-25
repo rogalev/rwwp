@@ -11,6 +11,7 @@ parameters:
     parser.http_timeout: '%env(float:PARSER_HTTP_TIMEOUT)%'
     parser.http_max_duration: '%env(float:PARSER_HTTP_MAX_DURATION)%'
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
+    parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
 
 services:
     # default configuration for services in *this* file
@@ -42,6 +43,9 @@ services:
     App\Url\UrlNormalizerInterface:
         alias: App\Url\TrackingQueryUrlNormalizer
 
+    App\Output\ParsedArticleSinkInterface:
+        alias: App\Output\NdjsonParsedArticleSink
+
     App\Http\RotatingUserAgentProvider:
         arguments:
             $userAgents: '%parser.http_user_agents%'
@@ -50,6 +54,10 @@ services:
         arguments:
             $timeout: '%parser.http_timeout%'
             $maxDuration: '%parser.http_max_duration%'
+
+    App\Output\NdjsonParsedArticleSink:
+        arguments:
+            $path: '%parser.article_output_path%'
 
     App\Listing\ArticleListingProviderRegistry:
         arguments:
