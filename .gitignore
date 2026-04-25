@@ -1,0 +1,22 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Local environment
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime/cache/logs
+var/
+vendor/
+node_modules/
+
+# Symfony
+.env.local.php
+config/secrets/prod/prod.decrypt.private.php
+public/bundles/
