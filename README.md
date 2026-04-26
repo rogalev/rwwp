@@ -1,50 +1,124 @@
 # RussiaWW Parser Agent
 
-Parser-agent is a standalone Symfony CLI application. It is designed to run on
-separate machines and must not require direct access to the main application
-database.
+Parser-agent - отдельное Symfony CLI-приложение. Оно рассчитано на запуск на
+отдельных машинах и не должно требовать прямого доступа к базе данных основного
+приложения.
 
-Development runs through Docker Compose. Do not rely on locally installed PHP or
-Composer versions for day-to-day commands.
+Разработка выполняется через Docker Compose. Для повседневных команд не надо
+полагаться на локально установленные PHP или Composer.
 
-## Development
+## Разработка
 
-Build the PHP image:
+Собрать PHP-образ:
 
 ```bash
 make build
 ```
 
-Run Symfony console commands:
+Запустить Symfony console command:
 
 ```bash
 make console cmd="list parser"
 ```
 
-Run a basic HTTP fetch smoke test:
+Показать доступные команды parser-agent:
+
+```bash
+make parser-list
+```
+
+Показать статус последней проверки parser-agent:
+
+```bash
+make status
+```
+
+Запустить базовую проверку HTTP-загрузки:
 
 ```bash
 make test-fetch
 ```
 
-Remove stopped containers and orphan Compose resources:
+Удалить остановленные контейнеры и orphan-ресурсы Compose:
 
 ```bash
 make clean
 ```
 
-## Local Runtime Data
+## Локальные Runtime-Данные
 
-Parser-agent keeps local state and output files under `var/`.
+Parser-agent хранит локальное состояние и output-файлы в `var/`.
 
 - SQLite state database: `var/state/parser.sqlite`
-- Parsed articles NDJSON output: `var/output/articles.ndjson`
+- NDJSON output распарсенных статей: `var/output/articles.ndjson`
 
-The `var/` directory is runtime data and must not be committed.
+Директория `var/` содержит runtime-данные и не должна коммититься.
+
+## Добавление Или Ремонт Источника
+
+Общий pipeline parser-agent должен оставаться стабильным. Правила, зависящие от
+верстки конкретного источника, должны быть маленькими и простыми для изменения.
+
+Если источник сломался, начинай с самого маленького слоя, который мог упасть:
+
+1. Проверить, работает ли получение списка новостей.
+
+```bash
+make console cmd="parser:listing:fetch rss_feed bbc world https://feeds.bbci.co.uk/news/world/rss.xml"
+```
+
+Для HTML listing source настрой selector в `PARSER_HTML_LISTING_LINK_SELECTORS`.
+Формат ключа:
+
+```dotenv
+PARSER_HTML_LISTING_LINK_SELECTORS='{"source.category.html_section": ".article-link"}'
+```
+
+Затем запусти:
+
+```bash
+make console cmd="parser:listing:fetch html_section source category https://example.com/news"
+```
+
+2. Если listing работает, проверить парсинг самой статьи.
+
+```bash
+make console cmd="parser:article:parse bbc world https://www.bbc.com/news/articles/example"
+```
+
+3. Перед изменением parser-кода обновить или добавить fixtures.
+
+- RSS fixtures лежат в `tests/Fixtures/rss/`.
+- HTML listing fixtures лежат в `tests/Fixtures/html/`.
+- Article HTML fixtures тоже лежат в `tests/Fixtures/html/`.
+
+4. Изменить минимально возможный selector или parser rule.
+
+- HTML listing selectors настраиваются через `PARSER_HTML_LISTING_LINK_SELECTORS`.
+- BBC article selectors собраны в начале `src/Article/BbcArticleParser.php`.
+- Если у одного источника разные шаблоны страниц, сначала добавь отдельный fixture для каждого шаблона, а потом меняй логику.
+
+5. После каждого ремонта запустить тесты.
+
+```bash
+make test
+```
+
+6. Когда тесты проходят, запустить реальную проверку.
+
+```bash
+make console cmd="parser:check:rss bbc world https://feeds.bbci.co.uk/news/world/rss.xml --limit=1"
+```
+
+Затем посмотреть статус последней проверки:
+
+```bash
+make status
+```
 
 ## Git Hygiene
 
-Do not commit local IDE files, dependencies, or runtime data:
+Не коммить локальные IDE-файлы, зависимости и runtime-данные:
 
 - `.idea/`
 - `.vscode/`
