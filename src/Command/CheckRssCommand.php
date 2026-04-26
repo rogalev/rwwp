@@ -9,6 +9,7 @@ use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\Pipeline\ArticleProcessingStatus;
 use App\Pipeline\ArticleRefProcessor;
+use App\Status\ParserRunStatusWriter;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -26,6 +27,7 @@ final class CheckRssCommand extends Command
     public function __construct(
         private readonly ArticleListingProviderRegistry $listingProviderRegistry,
         private readonly ArticleRefProcessor $articleRefProcessor,
+        private readonly ParserRunStatusWriter $statusWriter,
     ) {
         parent::__construct();
     }
@@ -54,6 +56,10 @@ final class CheckRssCommand extends Command
         $found = 0;
         $alreadySeen = 0;
         $processed = 0;
+        $parsed = 0;
+        $failed = 0;
+        $unsupported = 0;
+        $lastError = null;
 
         try {
             $provider = $this->listingProviderRegistry->providerFor($source);
@@ -71,16 +77,32 @@ final class CheckRssCommand extends Command
                 $rows[] = $result->toTableRow();
                 ++$processed;
 
+                if ($result->status === ArticleProcessingStatus::Parsed) {
+                    ++$parsed;
+                }
+
+                if ($result->status === ArticleProcessingStatus::Failed) {
+                    ++$failed;
+                    $lastError = $result->error;
+                }
+
+                if ($result->status === ArticleProcessingStatus::SkippedUnsupported) {
+                    ++$unsupported;
+                    $lastError = $result->error;
+                }
+
                 if ($processed >= $limit) {
                     break;
                 }
             }
         } catch (\Throwable $exception) {
+            $this->writeStatus($source, $found, $alreadySeen, $processed, $parsed, $failed, $unsupported, $exception->getMessage());
             $io->error($exception->getMessage());
 
             return Command::FAILURE;
         }
 
+        $this->writeStatus($source, $found, $alreadySeen, $processed, $parsed, $failed, $unsupported, $lastError);
         $io->table(['Status', 'External URL', 'Title', 'Content length', 'Error'], $rows);
         $io->definitionList(
             ['Found before limit' => (string) $found],
@@ -96,5 +118,29 @@ final class CheckRssCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    private function writeStatus(
+        ListingSource $source,
+        int $found,
+        int $alreadySeen,
+        int $processed,
+        int $parsed,
+        int $failed,
+        int $unsupported,
+        ?string $lastError,
+    ): void {
+        $this->statusWriter->write([
+            'sourceCode' => $source->sourceCode,
+            'categoryCode' => $source->categoryCode,
+            'listingType' => $source->type->value,
+            'found' => $found,
+            'alreadySeen' => $alreadySeen,
+            'processed' => $processed,
+            'parsed' => $parsed,
+            'failed' => $failed,
+            'unsupported' => $unsupported,
+            'lastError' => $lastError,
+        ]);
     }
 }

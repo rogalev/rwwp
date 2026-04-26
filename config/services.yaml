@@ -13,6 +13,7 @@ parameters:
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
     parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
     parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
+    parser.run_status_path: '%env(resolve:PARSER_RUN_STATUS_PATH)%'
 
 services:
     # default configuration for services in *this* file
@@ -59,6 +60,10 @@ services:
     App\Output\NdjsonParsedArticleSink:
         arguments:
             $path: '%parser.article_output_path%'
+
+    App\Status\ParserRunStatusWriter:
+        arguments:
+            $path: '%parser.run_status_path%'
 
     App\Listing\ArticleListingProviderRegistry:
         arguments:
