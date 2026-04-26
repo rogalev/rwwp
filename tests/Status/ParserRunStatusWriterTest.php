@@ -57,6 +57,19 @@ final class ParserRunStatusWriterTest extends TestCase
         self::assertSame('second', $payload['sourceCode']);
     }
 
+    public function testWriteDoesNotAllowStatusToOverrideCheckedAt(): void
+    {
+        $path = $this->temporaryStatusPath();
+        $writer = new ParserRunStatusWriter($path);
+
+        $writer->write(['checkedAt' => 'custom']);
+
+        $payload = $this->readStatus($path);
+
+        self::assertNotSame('custom', $payload['checkedAt']);
+        self::assertNotFalse(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $payload['checkedAt']));
+    }
+
     private function temporaryStatusPath(): string
     {
         return sys_get_temp_dir().'/russiaww-parser-tests/'.bin2hex(random_bytes(8)).'/status/parser-run.json';
