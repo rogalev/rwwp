@@ -11,6 +11,7 @@ parameters:
     parser.http_timeout: '%env(float:PARSER_HTTP_TIMEOUT)%'
     parser.http_max_duration: '%env(float:PARSER_HTTP_MAX_DURATION)%'
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
+    parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
     parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
 
 services:
@@ -64,6 +65,12 @@ services:
             $providers: !tagged_iterator app.article_listing_provider
 
     App\Listing\RssArticleListingProvider:
+        tags:
+            - { name: app.article_listing_provider }
+
+    App\Listing\HtmlArticleListingProvider:
+        arguments:
+            $linkSelectors: '%parser.html_listing_link_selectors%'
         tags:
             - { name: app.article_listing_provider }
 
