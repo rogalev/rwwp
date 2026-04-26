@@ -8,6 +8,7 @@ use App\Article\ArticleParserRegistry;
 use App\Listing\ExternalArticleRef;
 use App\Output\ParsedArticleSinkInterface;
 use App\State\SeenArticleStoreInterface;
+use Psr\Log\LoggerInterface;
 
 final readonly class ArticleRefProcessor
 {
@@ -15,12 +16,15 @@ final readonly class ArticleRefProcessor
         private ArticleParserRegistry $articleParserRegistry,
         private ParsedArticleSinkInterface $parsedArticleSink,
         private SeenArticleStoreInterface $seenArticleStore,
+        private LoggerInterface $logger,
     ) {
     }
 
     public function process(ExternalArticleRef $articleRef): ArticleProcessingResult
     {
         if ($this->seenArticleStore->has($articleRef->externalUrl)) {
+            $this->logger->info('article.already_seen', $this->logContext($articleRef, ArticleProcessingStatus::AlreadySeen));
+
             return new ArticleProcessingResult(
                 status: ArticleProcessingStatus::AlreadySeen,
                 externalUrl: $articleRef->externalUrl,
@@ -37,6 +41,11 @@ final readonly class ArticleRefProcessor
             $parser = $this->articleParserRegistry->parserFor($articleRef);
         } catch (\RuntimeException $exception) {
             $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
+            $this->logger->warning('article.unsupported', $this->logContext(
+                $articleRef,
+                ArticleProcessingStatus::SkippedUnsupported,
+                error: $exception->getMessage(),
+            ));
 
             return new ArticleProcessingResult(
                 status: ArticleProcessingStatus::SkippedUnsupported,
@@ -49,6 +58,12 @@ final readonly class ArticleRefProcessor
             $article = $parser->parse($articleRef);
             $this->parsedArticleSink->write($article);
             $this->seenArticleStore->markParsed($articleRef->externalUrl);
+            $this->logger->info('article.parsed', $this->logContext(
+                $articleRef,
+                ArticleProcessingStatus::Parsed,
+                title: $article->title,
+                contentLength: $article->contentLength(),
+            ));
 
             return new ArticleProcessingResult(
                 status: ArticleProcessingStatus::Parsed,
@@ -58,6 +73,11 @@ final readonly class ArticleRefProcessor
             );
         } catch (\Throwable $exception) {
             $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
+            $this->logger->error('article.failed', $this->logContext(
+                $articleRef,
+                ArticleProcessingStatus::Failed,
+                error: $exception->getMessage(),
+            ));
 
             return new ArticleProcessingResult(
                 status: ArticleProcessingStatus::Failed,
@@ -65,5 +85,26 @@ final readonly class ArticleRefProcessor
                 error: $exception->getMessage(),
             );
         }
+    }
+
+    /**
+     * @return array<string, string|int|null>
+     */
+    private function logContext(
+        ExternalArticleRef $articleRef,
+        ArticleProcessingStatus $status,
+        ?string $title = null,
+        ?int $contentLength = null,
+        ?string $error = null,
+    ): array {
+        return [
+            'externalUrl' => $articleRef->externalUrl,
+            'sourceCode' => $articleRef->sourceCode,
+            'categoryCode' => $articleRef->categoryCode,
+            'status' => $status->value,
+            'title' => $title,
+            'contentLength' => $contentLength,
+            'error' => $error,
+        ];
     }
 }

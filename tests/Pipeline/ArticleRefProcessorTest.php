@@ -14,6 +14,7 @@ use App\Pipeline\ArticleProcessingStatus;
 use App\Pipeline\ArticleRefProcessor;
 use App\State\SeenArticleStoreInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 
 final class ArticleRefProcessorTest extends TestCase
 {
@@ -22,7 +23,8 @@ final class ArticleRefProcessorTest extends TestCase
         $state = new FakeSeenArticleStore(alreadySeen: true);
         $parser = new FakeArticleParser();
         $sink = new FakeParsedArticleSink();
-        $processor = $this->processor($state, $parser, $sink);
+        $logger = new InMemoryLogger();
+        $processor = $this->processor($state, $parser, $sink, $logger);
 
         $result = $processor->process($this->articleRef());
 
@@ -33,6 +35,9 @@ final class ArticleRefProcessorTest extends TestCase
         self::assertSame([], $state->seenMarks);
         self::assertSame([], $state->parsedMarks);
         self::assertSame([], $state->failedMarks);
+        self::assertSame('info', $logger->records[0]['level']);
+        self::assertSame('article.already_seen', $logger->records[0]['message']);
+        self::assertSame('ALREADY_SEEN', $logger->records[0]['context']['status']);
     }
 
     public function testProcessParsesNewArticleAndMarksItParsed(): void
@@ -40,7 +45,8 @@ final class ArticleRefProcessorTest extends TestCase
         $state = new FakeSeenArticleStore(alreadySeen: false);
         $parser = new FakeArticleParser();
         $sink = new FakeParsedArticleSink();
-        $processor = $this->processor($state, $parser, $sink);
+        $logger = new InMemoryLogger();
+        $processor = $this->processor($state, $parser, $sink, $logger);
 
         $result = $processor->process($this->articleRef());
 
@@ -59,6 +65,11 @@ final class ArticleRefProcessorTest extends TestCase
         ], $state->seenMarks);
         self::assertSame(['https://example.com/news/42'], $state->parsedMarks);
         self::assertSame([], $state->failedMarks);
+        self::assertSame('info', $logger->records[0]['level']);
+        self::assertSame('article.parsed', $logger->records[0]['message']);
+        self::assertSame('PARSED', $logger->records[0]['context']['status']);
+        self::assertSame('Example title', $logger->records[0]['context']['title']);
+        self::assertSame(16, $logger->records[0]['context']['contentLength']);
     }
 
     public function testProcessMarksArticleFailedWhenParserFails(): void
@@ -66,7 +77,8 @@ final class ArticleRefProcessorTest extends TestCase
         $state = new FakeSeenArticleStore(alreadySeen: false);
         $parser = new FakeArticleParser(parseException: new \RuntimeException('Parser failed.'));
         $sink = new FakeParsedArticleSink();
-        $processor = $this->processor($state, $parser, $sink);
+        $logger = new InMemoryLogger();
+        $processor = $this->processor($state, $parser, $sink, $logger);
 
         $result = $processor->process($this->articleRef());
 
@@ -88,6 +100,10 @@ final class ArticleRefProcessorTest extends TestCase
                 'error' => 'Parser failed.',
             ],
         ], $state->failedMarks);
+        self::assertSame('error', $logger->records[0]['level']);
+        self::assertSame('article.failed', $logger->records[0]['message']);
+        self::assertSame('FAILED', $logger->records[0]['context']['status']);
+        self::assertSame('Parser failed.', $logger->records[0]['context']['error']);
     }
 
     public function testProcessMarksArticleUnsupportedWhenNoParserSupportsRef(): void
@@ -95,7 +111,8 @@ final class ArticleRefProcessorTest extends TestCase
         $state = new FakeSeenArticleStore(alreadySeen: false);
         $parser = new FakeArticleParser(supports: false);
         $sink = new FakeParsedArticleSink();
-        $processor = $this->processor($state, $parser, $sink);
+        $logger = new InMemoryLogger();
+        $processor = $this->processor($state, $parser, $sink, $logger);
 
         $result = $processor->process($this->articleRef());
 
@@ -117,17 +134,22 @@ final class ArticleRefProcessorTest extends TestCase
                 'error' => 'No article parser supports "https://example.com/news/42".',
             ],
         ], $state->failedMarks);
+        self::assertSame('warning', $logger->records[0]['level']);
+        self::assertSame('article.unsupported', $logger->records[0]['message']);
+        self::assertSame('SKIPPED_UNSUPPORTED', $logger->records[0]['context']['status']);
     }
 
     private function processor(
         FakeSeenArticleStore $state,
         FakeArticleParser $parser,
         FakeParsedArticleSink $sink,
+        InMemoryLogger $logger,
     ): ArticleRefProcessor {
         return new ArticleRefProcessor(
             new ArticleParserRegistry([$parser]),
             $sink,
             $state,
+            $logger,
         );
     }
 
@@ -139,6 +161,26 @@ final class ArticleRefProcessorTest extends TestCase
             'world',
             ListingSourceType::RssFeed,
         );
+    }
+}
+
+final class InMemoryLogger extends AbstractLogger
+{
+    /**
+     * @var list<array{level: string, message: string, context: array<string, mixed>}>
+     */
+    public array $records = [];
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function log($level, string|\Stringable $message, array $context = []): void
+    {
+        $this->records[] = [
+            'level' => (string) $level,
+            'message' => (string) $message,
+            'context' => $context,
+        ];
     }
 }
 
