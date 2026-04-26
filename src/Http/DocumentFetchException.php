@@ -10,4 +10,9 @@ final class DocumentFetchException extends \RuntimeException
     {
         return new self(sprintf('Unexpected HTTP status %d while fetching "%s".', $statusCode, $url));
     }
+
+    public static function forTransportError(string $url, ?\Throwable $previous): self
+    {
+        return new self(sprintf('Transport error while fetching "%s".', $url), previous: $previous);
+    }
 }
