@@ -10,6 +10,15 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final readonly class BbcArticleParser implements ArticleParserInterface
 {
+    private const TITLE_SELECTOR = 'h1';
+    private const CONTENT_PARAGRAPH_SELECTOR = 'main p';
+    private const PUBLISHED_AT_SELECTOR = 'time[datetime]';
+    private const AUTHOR_SELECTORS = [
+        '[data-testid="byline-new-contributors"]',
+        '[data-testid="byline"]',
+        'span[class*="byline"]',
+    ];
+
     public function __construct(
         private DocumentFetcherInterface $documentFetcher,
     ) {
@@ -28,7 +37,7 @@ final readonly class BbcArticleParser implements ArticleParserInterface
 
         $document = $this->documentFetcher->fetch($ref->externalUrl);
         $crawler = new Crawler($document->content, $ref->externalUrl);
-        $title = $this->requiredText($crawler, 'h1', $ref->externalUrl, 'title');
+        $title = $this->requiredText($crawler, self::TITLE_SELECTOR, $ref->externalUrl, 'title');
         $content = $this->articleContent($crawler, $ref->externalUrl);
 
         return new ParsedArticle(
@@ -52,7 +61,7 @@ final readonly class BbcArticleParser implements ArticleParserInterface
     {
         $paragraphs = [];
 
-        $crawler->filter('main p')->each(static function (Crawler $paragraph) use (&$paragraphs): void {
+        $crawler->filter(self::CONTENT_PARAGRAPH_SELECTOR)->each(static function (Crawler $paragraph) use (&$paragraphs): void {
             $text = trim($paragraph->text(''));
 
             if ($text !== '') {
@@ -88,7 +97,7 @@ final readonly class BbcArticleParser implements ArticleParserInterface
 
     private function publishedAt(Crawler $crawler): ?\DateTimeImmutable
     {
-        $time = $crawler->filter('time[datetime]');
+        $time = $crawler->filter(self::PUBLISHED_AT_SELECTOR);
 
         if ($time->count() === 0) {
             return null;
@@ -109,13 +118,7 @@ final readonly class BbcArticleParser implements ArticleParserInterface
 
     private function author(Crawler $crawler): ?string
     {
-        $authorSelectors = [
-            '[data-testid="byline-new-contributors"]',
-            '[data-testid="byline"]',
-            'span[class*="byline"]',
-        ];
-
-        foreach ($authorSelectors as $selector) {
+        foreach (self::AUTHOR_SELECTORS as $selector) {
             $node = $crawler->filter($selector);
 
             if ($node->count() === 0) {
