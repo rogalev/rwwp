@@ -7,8 +7,8 @@ namespace App\Command;
 use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
+use App\Pipeline\ArticleProcessingStatus;
 use App\Pipeline\ArticleRefProcessor;
-use App\State\SeenArticleStoreInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -26,7 +26,6 @@ final class RssParseNewCommand extends Command
     public function __construct(
         private readonly ArticleListingProviderRegistry $listingProviderRegistry,
         private readonly ArticleRefProcessor $articleRefProcessor,
-        private readonly SeenArticleStoreInterface $seenArticleStore,
     ) {
         parent::__construct();
     }
@@ -60,13 +59,14 @@ final class RssParseNewCommand extends Command
         foreach ($provider->fetchArticleRefs($source) as $articleRef) {
             ++$found;
 
-            if ($this->seenArticleStore->has($articleRef->externalUrl)) {
+            $result = $this->articleRefProcessor->process($articleRef);
+
+            if ($result->status === ArticleProcessingStatus::AlreadySeen) {
                 ++$alreadySeen;
                 continue;
             }
 
-            $this->seenArticleStore->markSeen($articleRef->externalUrl, $articleRef->sourceCode, $articleRef->categoryCode);
-            $rows[] = $this->articleRefProcessor->process($articleRef)->toTableRow();
+            $rows[] = $result->toTableRow();
             ++$processed;
 
             if ($processed >= $limit) {

@@ -20,6 +20,19 @@ final readonly class ArticleRefProcessor
 
     public function process(ExternalArticleRef $articleRef): ArticleProcessingResult
     {
+        if ($this->seenArticleStore->has($articleRef->externalUrl)) {
+            return new ArticleProcessingResult(
+                status: ArticleProcessingStatus::AlreadySeen,
+                externalUrl: $articleRef->externalUrl,
+            );
+        }
+
+        $this->seenArticleStore->markSeen(
+            $articleRef->externalUrl,
+            $articleRef->sourceCode,
+            $articleRef->categoryCode,
+        );
+
         try {
             $parser = $this->articleParserRegistry->parserFor($articleRef);
         } catch (\RuntimeException $exception) {
