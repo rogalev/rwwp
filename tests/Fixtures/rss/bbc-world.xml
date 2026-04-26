@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>BBC World</title>
+        <link>https://www.bbc.com/news/world</link>
+        <description>Fixture RSS feed for parser-agent tests.</description>
+        <item>
+            <title>First article</title>
+            <link>https://www.bbc.com/news/articles/c123?at_medium=RSS&amp;at_campaign=rss&amp;utm_source=feed&amp;id=42</link>
+        </item>
+        <item>
+            <title>Duplicate first article</title>
+            <link>https://www.bbc.com/news/articles/c123?id=42</link>
+        </item>
+        <item>
+            <title>Second article</title>
+            <link>https://www.bbc.com/news/articles/c456?utm_campaign=world&amp;page=2</link>
+        </item>
+        <item>
+            <title>Empty link article</title>
+            <link></link>
+        </item>
+    </channel>
+</rss>
