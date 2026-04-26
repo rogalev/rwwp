@@ -66,7 +66,7 @@ final readonly class HtmlArticleListingProvider implements ArticleListingProvide
 
     private function selectorFor(ListingSource $source): string
     {
-        $key = $source->sourceCode.'.'.$source->categoryCode;
+        $key = $source->sourceCode.'.'.$source->categoryCode.'.'.$source->type->value;
         $selector = $this->linkSelectors[$key] ?? null;
 
         if ($selector === null || trim($selector) === '') {

@@ -25,7 +25,7 @@ final class HtmlArticleListingProviderTest extends TestCase
         $provider = new HtmlArticleListingProvider(
             new FakeHtmlDocumentFetcher($this->htmlFixture()),
             new TrackingQueryUrlNormalizer(),
-            ['example.world' => '.news-card__link'],
+            ['example.world.html_section' => '.news-card__link'],
         );
 
         $refs = iterator_to_array($provider->fetchArticleRefs($source), false);
@@ -51,7 +51,7 @@ final class HtmlArticleListingProviderTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('HTML listing selector is not configured for "example.world".');
+        $this->expectExceptionMessage('HTML listing selector is not configured for "example.world.html_section".');
 
         iterator_to_array($provider->fetchArticleRefs(new ListingSource(
             ListingSourceType::HtmlSection,
@@ -66,7 +66,7 @@ final class HtmlArticleListingProviderTest extends TestCase
         $provider = new HtmlArticleListingProvider(
             new FakeHtmlDocumentFetcher($this->htmlFixture()),
             new TrackingQueryUrlNormalizer(),
-            ['example.world' => '.news-card__link'],
+            ['example.world.html_section' => '.news-card__link'],
         );
 
         $this->expectException(\InvalidArgumentException::class);
