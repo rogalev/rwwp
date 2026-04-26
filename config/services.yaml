@@ -12,6 +12,8 @@ parameters:
     parser.http_max_duration: '%env(float:PARSER_HTTP_MAX_DURATION)%'
     parser.http_retry_attempts: '%env(int:PARSER_HTTP_RETRY_ATTEMPTS)%'
     parser.http_retry_delay_ms: '%env(int:PARSER_HTTP_RETRY_DELAY_MS)%'
+    parser.http_min_delay_ms: '%env(int:PARSER_HTTP_MIN_DELAY_MS)%'
+    parser.http_jitter_ms: '%env(int:PARSER_HTTP_JITTER_MS)%'
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
     parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
     parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
@@ -60,6 +62,8 @@ services:
             $maxDuration: '%parser.http_max_duration%'
             $retryAttempts: '%parser.http_retry_attempts%'
             $retryDelayMs: '%parser.http_retry_delay_ms%'
+            $minDelayMs: '%parser.http_min_delay_ms%'
+            $jitterMs: '%parser.http_jitter_ms%'
 
     App\Output\NdjsonParsedArticleSink:
         arguments:

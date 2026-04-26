@@ -17,6 +17,8 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
         private float $maxDuration,
         private int $retryAttempts,
         private int $retryDelayMs,
+        private int $minDelayMs,
+        private int $jitterMs,
     ) {
     }
 
@@ -27,6 +29,7 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
 
         for ($attempt = 1; $attempt <= $this->maxAttempts(); ++$attempt) {
             try {
+                $this->sleepBeforeRequest();
                 $response = $this->request($url, $userAgent);
                 $statusCode = $response->getStatusCode();
 
@@ -90,5 +93,21 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
         }
 
         usleep($this->retryDelayMs * 1000);
+    }
+
+    private function sleepBeforeRequest(): void
+    {
+        $delayMs = max(0, $this->minDelayMs);
+        $jitterMs = max(0, $this->jitterMs);
+
+        if ($jitterMs > 0) {
+            $delayMs += random_int(0, $jitterMs);
+        }
+
+        if ($delayMs <= 0) {
+            return;
+        }
+
+        usleep($delayMs * 1000);
     }
 }

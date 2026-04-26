@@ -63,6 +63,8 @@ final class SymfonyHttpDocumentFetcherTest extends TestCase
             maxDuration: 30,
             retryAttempts: 2,
             retryDelayMs: 0,
+            minDelayMs: 0,
+            jitterMs: 0,
         );
     }
 }
