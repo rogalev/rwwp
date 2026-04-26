@@ -1,4 +1,4 @@
-.PHONY: build clean console php test-fetch
+.PHONY: build clean console php test test-fetch
 
 build:
 	docker compose build php
@@ -11,6 +11,9 @@ console:
 
 php:
 	docker compose run --rm php php $(cmd)
+
+test:
+	docker compose run --rm php php bin/phpunit
 
 test-fetch:
 	docker compose run --rm php php bin/console parser:fetch https://example.com
