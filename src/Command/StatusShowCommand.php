@@ -13,7 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'parser:status:show',
-    description: 'Shows the last parser-agent run status.',
+    description: 'Показывает последний статус запуска parser-agent.',
 )]
 final class StatusShowCommand extends Command
 {
@@ -36,6 +36,62 @@ final class StatusShowCommand extends Command
         }
 
         $io->title('Parser status');
+        if (($status['mode'] ?? null) === 'main_assignments_batch') {
+            $this->showMainAssignmentsBatchStatus($io, $status);
+
+            return Command::SUCCESS;
+        }
+
+        $this->showLegacyStatus($io, $status);
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    private function showMainAssignmentsBatchStatus(SymfonyStyle $io, array $status): void
+    {
+        $io->definitionList(
+            ['Checked at' => $this->stringValue($status['checkedAt'] ?? null)],
+            ['Mode' => $this->stringValue($status['mode'] ?? null)],
+            ['Assignments' => $this->stringValue($status['assignments'] ?? null)],
+            ['Found' => $this->stringValue($status['found'] ?? null)],
+            ['Already seen' => $this->stringValue($status['alreadySeen'] ?? null)],
+            ['Sent' => $this->stringValue($status['sent'] ?? null)],
+            ['Failed' => $this->stringValue($status['failed'] ?? null)],
+            ['Last error' => $this->stringValue($status['lastError'] ?? null)],
+        );
+
+        $assignmentErrors = $status['assignmentErrors'] ?? [];
+        if (!\is_array($assignmentErrors) || $assignmentErrors === []) {
+            return;
+        }
+
+        $rows = [];
+        foreach ($assignmentErrors as $assignmentError) {
+            if (!\is_array($assignmentError)) {
+                continue;
+            }
+
+            $rows[] = [
+                $this->stringValue($assignmentError['assignmentId'] ?? null),
+                $this->stringValue($assignmentError['source'] ?? null),
+                $this->stringValue($assignmentError['error'] ?? null),
+            ];
+        }
+
+        if ($rows !== []) {
+            $io->section('Assignment errors');
+            $io->table(['Assignment ID', 'Source', 'Error'], $rows);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    private function showLegacyStatus(SymfonyStyle $io, array $status): void
+    {
         $io->definitionList(
             ['Checked at' => $this->stringValue($status['checkedAt'] ?? null)],
             ['Source' => $this->stringValue($status['sourceCode'] ?? null)],
@@ -49,8 +105,6 @@ final class StatusShowCommand extends Command
             ['Unsupported' => $this->stringValue($status['unsupported'] ?? null)],
             ['Last error' => $this->stringValue($status['lastError'] ?? null)],
         );
-
-        return Command::SUCCESS;
     }
 
     private function stringValue(mixed $value): string
