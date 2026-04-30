@@ -6,7 +6,7 @@ namespace App\MainApi;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final readonly class MainApiRawArticleClient
+final readonly class MainApiRawArticleClient implements MainApiRawArticleSenderInterface
 {
     public function __construct(
         private HttpClientInterface $httpClient,

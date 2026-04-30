@@ -86,6 +86,9 @@ services:
             $parserInstanceId: '%main_api.parser_instance_id%'
             $apiKey: '%main_api.parser_api_key%'
 
+    App\MainApi\MainApiRawArticleSenderInterface:
+        alias: App\MainApi\MainApiRawArticleClient
+
     App\MainApi\MainApiAssignmentsClient:
         arguments:
             $baseUrl: '%main_api.base_url%'
