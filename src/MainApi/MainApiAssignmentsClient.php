@@ -6,7 +6,7 @@ namespace App\MainApi;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final readonly class MainApiAssignmentsClient
+final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProviderInterface
 {
     public function __construct(
         private HttpClientInterface $httpClient,
