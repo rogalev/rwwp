@@ -18,6 +18,9 @@ parameters:
     parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
     parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
     parser.run_status_path: '%env(resolve:PARSER_RUN_STATUS_PATH)%'
+    main_api.base_url: '%env(resolve:MAIN_API_BASE_URL)%'
+    main_api.parser_instance_id: '%env(resolve:PARSER_INSTANCE_ID)%'
+    main_api.parser_api_key: '%env(resolve:PARSER_API_KEY)%'
 
 services:
     # default configuration for services in *this* file
@@ -76,6 +79,12 @@ services:
     App\Status\ParserRunStatusReader:
         arguments:
             $path: '%parser.run_status_path%'
+
+    App\MainApi\MainApiRawArticleClient:
+        arguments:
+            $baseUrl: '%main_api.base_url%'
+            $parserInstanceId: '%main_api.parser_instance_id%'
+            $apiKey: '%main_api.parser_api_key%'
 
     App\Listing\ArticleListingProviderRegistry:
         arguments:
