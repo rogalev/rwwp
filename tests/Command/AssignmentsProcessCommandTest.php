@@ -18,6 +18,7 @@ use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
 use App\Pipeline\AssignmentRawArticleProcessor;
 use App\State\SeenArticleStoreInterface;
+use App\Status\ParserRunStatusWriter;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -26,6 +27,7 @@ final class AssignmentsProcessCommandTest extends TestCase
 {
     public function testProcessesAllAssignments(): void
     {
+        $statusPath = $this->temporaryStatusPath();
         $processor = $this->processor();
         $commandTester = new CommandTester(new AssignmentsProcessCommand(
             new AssignmentsProcessAssignmentsProvider([
@@ -33,6 +35,7 @@ final class AssignmentsProcessCommandTest extends TestCase
                 $this->assignment('0196a333-3333-7333-8333-333333333333', 'CNN'),
             ]),
             $processor,
+            new ParserRunStatusWriter($statusPath),
         ));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
@@ -43,19 +46,37 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertStringContainsString('0196a333-3333-7333-8333-333333333333', $display);
         self::assertStringContainsString('BBC', $display);
         self::assertStringContainsString('CNN', $display);
+
+        $status = $this->readStatus($statusPath);
+        self::assertSame('main_assignments_batch', $status['mode']);
+        self::assertSame(2, $status['assignments']);
+        self::assertSame(2, $status['found']);
+        self::assertSame(0, $status['alreadySeen']);
+        self::assertSame(2, $status['sent']);
+        self::assertSame(0, $status['failed']);
+        self::assertSame([], $status['assignmentErrors']);
+        self::assertSame('', $status['lastError']);
     }
 
     public function testShowsEmptyAssignmentsMessage(): void
     {
+        $statusPath = $this->temporaryStatusPath();
         $commandTester = new CommandTester(new AssignmentsProcessCommand(
             new AssignmentsProcessAssignmentsProvider([]),
             $this->processor(),
+            new ParserRunStatusWriter($statusPath),
         ));
 
         $exitCode = $commandTester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertStringContainsString('Назначения для текущего parser-agent не найдены.', $commandTester->getDisplay());
+
+        $status = $this->readStatus($statusPath);
+        self::assertSame(0, $status['assignments']);
+        self::assertSame(0, $status['found']);
+        self::assertSame(0, $status['sent']);
+        self::assertSame('', $status['lastError']);
     }
 
     public function testFailsOnInvalidLimit(): void
@@ -63,6 +84,7 @@ final class AssignmentsProcessCommandTest extends TestCase
         $commandTester = new CommandTester(new AssignmentsProcessCommand(
             new AssignmentsProcessAssignmentsProvider([]),
             $this->processor(),
+            new ParserRunStatusWriter($this->temporaryStatusPath()),
         ));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '0']);
@@ -73,12 +95,14 @@ final class AssignmentsProcessCommandTest extends TestCase
 
     public function testContinuesWhenOneAssignmentFails(): void
     {
+        $statusPath = $this->temporaryStatusPath();
         $commandTester = new CommandTester(new AssignmentsProcessCommand(
             new AssignmentsProcessAssignmentsProvider([
                 $this->assignment('0196a222-2222-7222-8222-222222222222', 'Broken source'),
                 $this->assignment('0196a333-3333-7333-8333-333333333333', 'Working source'),
             ]),
             $this->processor(failingAssignmentId: '0196a222-2222-7222-8222-222222222222'),
+            new ParserRunStatusWriter($statusPath),
         ));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
@@ -87,6 +111,19 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(Command::FAILURE, $exitCode);
         self::assertStringContainsString('Broken source failed.', $display);
         self::assertStringContainsString('Working source', $display);
+
+        $status = $this->readStatus($statusPath);
+        self::assertSame(2, $status['assignments']);
+        self::assertSame(1, $status['found']);
+        self::assertSame(1, $status['sent']);
+        self::assertSame([
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'source' => 'Broken source',
+                'error' => 'Broken source failed.',
+            ],
+        ], $status['assignmentErrors']);
+        self::assertSame('Broken source failed.', $status['lastError']);
     }
 
     private function processor(?string $failingAssignmentId = null): AssignmentRawArticleProcessor
@@ -113,6 +150,25 @@ final class AssignmentsProcessCommandTest extends TestCase
             requestTimeoutSeconds: 15,
             config: [],
         );
+    }
+
+    private function temporaryStatusPath(): string
+    {
+        return sys_get_temp_dir().'/russiaww-parser-tests/'.bin2hex(random_bytes(8)).'/status/parser-run.json';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readStatus(string $path): array
+    {
+        $contents = file_get_contents($path);
+        self::assertIsString($contents);
+
+        $payload = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+
+        return $payload;
     }
 }
 
