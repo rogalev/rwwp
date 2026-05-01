@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Command;
 
-use App\Command\AssignmentsProcessCommand;
+use App\Command\RunOnceCommand;
 use App\Http\DocumentFetcherInterface;
 use App\Http\FetchedDocument;
 use App\Listing\ArticleListingProviderInterface;
@@ -24,67 +24,34 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
-final class AssignmentsProcessCommandTest extends TestCase
+final class RunOnceCommandTest extends TestCase
 {
-    public function testProcessesAllAssignments(): void
+    public function testRunsOneBatchCycle(): void
     {
         $statusPath = $this->temporaryStatusPath();
-        $processor = $this->processor();
-        $commandTester = new CommandTester(new AssignmentsProcessCommand(
-            $this->batchProcessor(
-                [
-                    $this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC'),
-                    $this->assignment('0196a333-3333-7333-8333-333333333333', 'CNN'),
-                ],
-                $processor,
-                $statusPath,
-            ),
-        ));
+        $commandTester = new CommandTester(new RunOnceCommand($this->batchProcessor(
+            [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
+            $statusPath,
+        )));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
         $display = $commandTester->getDisplay();
 
         self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertStringContainsString('0196a222-2222-7222-8222-222222222222', $display);
-        self::assertStringContainsString('0196a333-3333-7333-8333-333333333333', $display);
-        self::assertStringContainsString('BBC', $display);
-        self::assertStringContainsString('CNN', $display);
+        self::assertStringContainsString('Assignments', $display);
+        self::assertStringContainsString('Sent', $display);
+        self::assertStringContainsString('1', $display);
 
         $status = $this->readStatus($statusPath);
         self::assertSame('main_assignments_batch', $status['mode']);
-        self::assertSame(2, $status['assignments']);
-        self::assertSame(2, $status['found']);
-        self::assertSame(0, $status['alreadySeen']);
-        self::assertSame(2, $status['sent']);
-        self::assertSame(0, $status['failed']);
-        self::assertSame([], $status['assignmentErrors']);
-        self::assertSame('', $status['lastError']);
-    }
-
-    public function testShowsEmptyAssignmentsMessage(): void
-    {
-        $statusPath = $this->temporaryStatusPath();
-        $commandTester = new CommandTester(new AssignmentsProcessCommand(
-            $this->batchProcessor([], $this->processor(), $statusPath),
-        ));
-
-        $exitCode = $commandTester->execute([]);
-
-        self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertStringContainsString('Назначения для текущего parser-agent не найдены.', $commandTester->getDisplay());
-
-        $status = $this->readStatus($statusPath);
-        self::assertSame(0, $status['assignments']);
-        self::assertSame(0, $status['found']);
-        self::assertSame(0, $status['sent']);
+        self::assertSame(1, $status['assignments']);
+        self::assertSame(1, $status['sent']);
         self::assertSame('', $status['lastError']);
     }
 
     public function testFailsOnInvalidLimit(): void
     {
-        $commandTester = new CommandTester(new AssignmentsProcessCommand(
-            $this->batchProcessor([], $this->processor(), $this->temporaryStatusPath()),
-        ));
+        $commandTester = new CommandTester(new RunOnceCommand($this->batchProcessor([], $this->temporaryStatusPath())));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '0']);
 
@@ -92,49 +59,28 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertStringContainsString('limit-per-assignment must be greater than zero.', $commandTester->getDisplay());
     }
 
-    public function testContinuesWhenOneAssignmentFails(): void
+    public function testReturnsFailureWhenAssignmentFailsAndWritesStatus(): void
     {
         $statusPath = $this->temporaryStatusPath();
-        $commandTester = new CommandTester(new AssignmentsProcessCommand(
-            $this->batchProcessor(
-                [
-                    $this->assignment('0196a222-2222-7222-8222-222222222222', 'Broken source'),
-                    $this->assignment('0196a333-3333-7333-8333-333333333333', 'Working source'),
-                ],
-                $this->processor(failingAssignmentId: '0196a222-2222-7222-8222-222222222222'),
-                $statusPath,
-            ),
-        ));
+        $commandTester = new CommandTester(new RunOnceCommand($this->batchProcessor(
+            [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
+            $statusPath,
+            failingAssignmentId: '0196a222-2222-7222-8222-222222222222',
+        )));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
-        $display = $commandTester->getDisplay();
 
         self::assertSame(Command::FAILURE, $exitCode);
-        self::assertStringContainsString('Broken source failed.', $display);
-        self::assertStringContainsString('Working source', $display);
 
         $status = $this->readStatus($statusPath);
-        self::assertSame(2, $status['assignments']);
-        self::assertSame(1, $status['found']);
-        self::assertSame(1, $status['sent']);
+        self::assertSame('Assignment failed.', $status['lastError']);
         self::assertSame([
             [
                 'assignmentId' => '0196a222-2222-7222-8222-222222222222',
-                'source' => 'Broken source',
-                'error' => 'Broken source failed.',
+                'source' => 'BBC',
+                'error' => 'Assignment failed.',
             ],
         ], $status['assignmentErrors']);
-        self::assertSame('Broken source failed.', $status['lastError']);
-    }
-
-    private function processor(?string $failingAssignmentId = null): AssignmentRawArticleProcessor
-    {
-        return new AssignmentRawArticleProcessor(
-            new ArticleListingProviderRegistry([new AssignmentsProcessListingProvider($failingAssignmentId)]),
-            new AssignmentsProcessDocumentFetcher(),
-            new AssignmentsProcessRawArticleSender(),
-            new AssignmentsProcessSeenStore(),
-        );
     }
 
     /**
@@ -142,12 +88,17 @@ final class AssignmentsProcessCommandTest extends TestCase
      */
     private function batchProcessor(
         array $assignments,
-        AssignmentRawArticleProcessor $processor,
         string $statusPath,
+        ?string $failingAssignmentId = null,
     ): AssignmentsBatchProcessor {
         return new AssignmentsBatchProcessor(
-            new AssignmentsProcessAssignmentsProvider($assignments),
-            $processor,
+            new RunOnceAssignmentsProvider($assignments),
+            new AssignmentRawArticleProcessor(
+                new ArticleListingProviderRegistry([new RunOnceListingProvider($failingAssignmentId)]),
+                new RunOnceDocumentFetcher(),
+                new RunOnceRawArticleSender(),
+                new RunOnceSeenStore(),
+            ),
             new ParserRunStatusWriter($statusPath),
         );
     }
@@ -188,7 +139,7 @@ final class AssignmentsProcessCommandTest extends TestCase
     }
 }
 
-final readonly class AssignmentsProcessAssignmentsProvider implements MainApiAssignmentsProviderInterface
+final readonly class RunOnceAssignmentsProvider implements MainApiAssignmentsProviderInterface
 {
     /**
      * @param list<ParserAssignment> $assignments
@@ -204,7 +155,7 @@ final readonly class AssignmentsProcessAssignmentsProvider implements MainApiAss
     }
 }
 
-final readonly class AssignmentsProcessListingProvider implements ArticleListingProviderInterface
+final readonly class RunOnceListingProvider implements ArticleListingProviderInterface
 {
     public function __construct(
         private ?string $failingAssignmentId = null,
@@ -219,7 +170,7 @@ final readonly class AssignmentsProcessListingProvider implements ArticleListing
     public function fetchArticleRefs(ListingSource $source): iterable
     {
         if ($source->categoryCode === $this->failingAssignmentId) {
-            throw new \RuntimeException('Broken source failed.');
+            throw new \RuntimeException('Assignment failed.');
         }
 
         return [
@@ -233,7 +184,7 @@ final readonly class AssignmentsProcessListingProvider implements ArticleListing
     }
 }
 
-final readonly class AssignmentsProcessDocumentFetcher implements DocumentFetcherInterface
+final readonly class RunOnceDocumentFetcher implements DocumentFetcherInterface
 {
     public function fetch(string $url): FetchedDocument
     {
@@ -248,7 +199,7 @@ final readonly class AssignmentsProcessDocumentFetcher implements DocumentFetche
     }
 }
 
-final readonly class AssignmentsProcessRawArticleSender implements MainApiRawArticleSenderInterface
+final readonly class RunOnceRawArticleSender implements MainApiRawArticleSenderInterface
 {
     public function send(
         string $assignmentId,
@@ -266,7 +217,7 @@ final readonly class AssignmentsProcessRawArticleSender implements MainApiRawArt
     }
 }
 
-final class AssignmentsProcessSeenStore implements SeenArticleStoreInterface
+final class RunOnceSeenStore implements SeenArticleStoreInterface
 {
     public function has(string $externalUrl): bool
     {

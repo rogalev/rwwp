@@ -14,10 +14,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
-    name: 'parser:assignments:process',
-    description: 'Обрабатывает все назначения из main и отправляет сырой HTML статей обратно в main.',
+    name: 'parser:run-once',
+    description: 'Выполняет один production-цикл parser-agent и завершает процесс.',
 )]
-final class AssignmentsProcessCommand extends Command
+final class RunOnceCommand extends Command
 {
     public function __construct(
         private readonly AssignmentsBatchProcessor $batchProcessor,
@@ -48,13 +48,14 @@ final class AssignmentsProcessCommand extends Command
             return Command::FAILURE;
         }
 
-        if ($result->assignments === 0) {
-            $io->info('Назначения для текущего parser-agent не найдены.');
-
-            return Command::SUCCESS;
-        }
-
-        $io->table(['Assignment ID', 'Source', 'Found', 'Already seen', 'Sent', 'Failed', 'Error'], $this->rows($result));
+        $io->definitionList(
+            ['Assignments' => (string) $result->assignments],
+            ['Found' => (string) $result->found],
+            ['Already seen' => (string) $result->alreadySeen],
+            ['Sent' => (string) $result->sent],
+            ['Failed' => (string) $result->failed],
+            ['Last error' => $result->lastError],
+        );
 
         return $result->hasErrors() ? Command::FAILURE : Command::SUCCESS;
     }
@@ -67,26 +68,5 @@ final class AssignmentsProcessCommand extends Command
         }
 
         return $limit;
-    }
-
-    /**
-     * @return list<array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string, 6: string}>
-     */
-    private function rows(AssignmentsBatchProcessingResult $result): array
-    {
-        $rows = [];
-        foreach ($result->assignmentResults as $assignmentResult) {
-            $rows[] = [
-                $assignmentResult->assignmentId,
-                $assignmentResult->source,
-                (string) $assignmentResult->found,
-                (string) $assignmentResult->alreadySeen,
-                (string) $assignmentResult->sent,
-                (string) $assignmentResult->failed,
-                $assignmentResult->error,
-            ];
-        }
-
-        return $rows;
     }
 }
