@@ -54,6 +54,69 @@ Parser-agent хранит локальное состояние и output-фай
 
 Директория `var/` содержит runtime-данные и не должна коммититься.
 
+## Работа С Main
+
+Parser-agent не подключается к базе main напрямую. Вся связь идет через Parser
+API main-приложения.
+
+Минимальные переменные окружения для связи с main:
+
+```dotenv
+MAIN_API_BASE_URL=http://host.docker.internal:8080
+PARSER_INSTANCE_ID=0196a111-1111-7111-8111-111111111111
+PARSER_API_KEY=parser_api_key
+```
+
+В production реальные значения задаются через окружение процесса или
+`.env.local` на конкретной машине. `PARSER_API_KEY` нельзя коммитить.
+
+Проверить, что parser-agent видит main и получает свои назначения:
+
+```bash
+make console cmd="parser:main:assignments"
+```
+
+Если назначений нет, сначала проверь в main, что parser instance включен и ему
+назначены источники.
+
+Вручную отправить сырой HTML статьи в main:
+
+```bash
+make console cmd="parser:main:raw-article:send 0196a222-2222-7222-8222-222222222222 https://example.com/news/1 /app/var/tmp/article.html --status=200"
+```
+
+Обработать одно назначение:
+
+```bash
+make console cmd="parser:assignment:process 0196a222-2222-7222-8222-222222222222 --limit=1"
+```
+
+Обработать все назначения вручную:
+
+```bash
+make console cmd="parser:assignments:process --limit-per-assignment=1"
+```
+
+Команда для production-запуска из cron или systemd timer:
+
+```bash
+make console cmd="parser:run-once --limit-per-assignment=1"
+```
+
+Показать последний сохраненный статус запуска:
+
+```bash
+make status
+```
+
+Рекомендуемый порядок диагностики:
+
+1. Проверить назначения: `parser:main:assignments`.
+2. Проверить ручную отправку HTML: `parser:main:raw-article:send`.
+3. Проверить одно назначение: `parser:assignment:process`.
+4. Проверить полный один цикл: `parser:run-once`.
+5. Проверить статус: `make status`.
+
 ## Добавление Или Ремонт Источника
 
 Общий pipeline parser-agent должен оставаться стабильным. Правила, зависящие от
