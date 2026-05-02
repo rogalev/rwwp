@@ -16,7 +16,6 @@ parameters:
     parser.http_jitter_ms: '%env(int:PARSER_HTTP_JITTER_MS)%'
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
     parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
-    parser.article_output_path: '%env(resolve:PARSER_ARTICLE_OUTPUT_PATH)%'
     parser.run_status_path: '%env(resolve:PARSER_RUN_STATUS_PATH)%'
     main_api.base_url: '%env(resolve:MAIN_API_BASE_URL)%'
     main_api.parser_instance_id: '%env(resolve:PARSER_INSTANCE_ID)%'
@@ -52,9 +51,6 @@ services:
     App\Url\UrlNormalizerInterface:
         alias: App\Url\TrackingQueryUrlNormalizer
 
-    App\Output\ParsedArticleSinkInterface:
-        alias: App\Output\NdjsonParsedArticleSink
-
     App\Http\RotatingUserAgentProvider:
         arguments:
             $userAgents: '%parser.http_user_agents%'
@@ -67,10 +63,6 @@ services:
             $retryDelayMs: '%parser.http_retry_delay_ms%'
             $minDelayMs: '%parser.http_min_delay_ms%'
             $jitterMs: '%parser.http_jitter_ms%'
-
-    App\Output\NdjsonParsedArticleSink:
-        arguments:
-            $path: '%parser.article_output_path%'
 
     App\Status\ParserRunStatusWriter:
         arguments:
@@ -120,11 +112,3 @@ services:
             $linkSelectors: '%parser.html_listing_link_selectors%'
         tags:
             - { name: app.article_listing_provider }
-
-    App\Article\ArticleParserRegistry:
-        arguments:
-            $parsers: !tagged_iterator app.article_parser
-
-    App\Article\BbcArticleParser:
-        tags:
-            - { name: app.article_parser }
