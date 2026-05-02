@@ -6,6 +6,9 @@ namespace App\Pipeline;
 
 final readonly class AssignmentBatchProcessingResult
 {
+    /**
+     * @param array<int, int> $httpStatusCodes
+     */
     public function __construct(
         public string $assignmentId,
         public string $source,
@@ -13,6 +16,8 @@ final readonly class AssignmentBatchProcessingResult
         public int $alreadySeen,
         public int $sent,
         public int $failed,
+        public array $httpStatusCodes = [],
+        public int $transportErrors = 0,
         public string $error = '',
     ) {
     }

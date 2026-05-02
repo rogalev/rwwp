@@ -35,6 +35,8 @@ final readonly class AssignmentRawArticleProcessor
         $sent = 0;
         $failed = 0;
         $attempted = 0;
+        $httpStatusCodes = [];
+        $transportErrors = 0;
 
         foreach ($provider->fetchArticleRefs($source) as $articleRef) {
             ++$found;
@@ -57,6 +59,7 @@ final readonly class AssignmentRawArticleProcessor
 
             try {
                 $document = $this->documentFetcher->fetch($articleRef->externalUrl);
+                $httpStatusCodes[$document->statusCode] = ($httpStatusCodes[$document->statusCode] ?? 0) + 1;
                 $this->rawArticleSender->send(
                     $assignment->assignmentId,
                     $articleRef->externalUrl,
@@ -69,10 +72,20 @@ final readonly class AssignmentRawArticleProcessor
             } catch (\Throwable $exception) {
                 $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
                 ++$failed;
+                ++$transportErrors;
             }
         }
 
-        return new AssignmentRawArticleProcessingResult($found, $alreadySeen, $sent, $failed);
+        ksort($httpStatusCodes);
+
+        return new AssignmentRawArticleProcessingResult(
+            found: $found,
+            alreadySeen: $alreadySeen,
+            sent: $sent,
+            failed: $failed,
+            httpStatusCodes: $httpStatusCodes,
+            transportErrors: $transportErrors,
+        );
     }
 
     private function listingSource(ParserAssignment $assignment): ListingSource

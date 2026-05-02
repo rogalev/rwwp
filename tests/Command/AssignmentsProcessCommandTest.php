@@ -57,6 +57,8 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(0, $status['alreadySeen']);
         self::assertSame(2, $status['sent']);
         self::assertSame(0, $status['failed']);
+        self::assertSame([200 => 2], $status['httpStatusCodes']);
+        self::assertSame(0, $status['transportErrors']);
         self::assertSame([], $status['assignmentErrors']);
         self::assertSame('', $status['lastError']);
     }
@@ -77,6 +79,8 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(0, $status['assignments']);
         self::assertSame(0, $status['found']);
         self::assertSame(0, $status['sent']);
+        self::assertSame([], $status['httpStatusCodes']);
+        self::assertSame(0, $status['transportErrors']);
         self::assertSame('', $status['lastError']);
     }
 
@@ -117,6 +121,8 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(2, $status['assignments']);
         self::assertSame(1, $status['found']);
         self::assertSame(1, $status['sent']);
+        self::assertSame([200 => 1], $status['httpStatusCodes']);
+        self::assertSame(1, $status['transportErrors']);
         self::assertSame([
             [
                 'assignmentId' => '0196a222-2222-7222-8222-222222222222',

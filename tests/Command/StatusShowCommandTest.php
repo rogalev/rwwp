@@ -22,6 +22,8 @@ final class StatusShowCommandTest extends TestCase
             'alreadySeen' => 1,
             'sent' => 3,
             'failed' => 1,
+            'httpStatusCodes' => [200 => 3, 403 => 1],
+            'transportErrors' => 2,
             'assignmentErrors' => [],
             'lastError' => '',
         ]);
@@ -35,6 +37,10 @@ final class StatusShowCommandTest extends TestCase
         self::assertStringContainsString('Assignments', $display);
         self::assertStringContainsString('Sent', $display);
         self::assertStringContainsString('3', $display);
+        self::assertStringContainsString('HTTP statuses', $display);
+        self::assertStringContainsString('{"200":3,"403":1}', $display);
+        self::assertStringContainsString('Transport errors', $display);
+        self::assertStringContainsString('2', $display);
     }
 
     public function testShowsAssignmentErrors(): void

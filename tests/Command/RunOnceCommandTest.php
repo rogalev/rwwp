@@ -46,6 +46,8 @@ final class RunOnceCommandTest extends TestCase
         self::assertSame('main_assignments_batch', $status['mode']);
         self::assertSame(1, $status['assignments']);
         self::assertSame(1, $status['sent']);
+        self::assertSame([200 => 1], $status['httpStatusCodes']);
+        self::assertSame(0, $status['transportErrors']);
         self::assertSame('', $status['lastError']);
     }
 
@@ -74,6 +76,8 @@ final class RunOnceCommandTest extends TestCase
 
         $status = $this->readStatus($statusPath);
         self::assertSame('Assignment failed.', $status['lastError']);
+        self::assertSame([], $status['httpStatusCodes']);
+        self::assertSame(1, $status['transportErrors']);
         self::assertSame([
             [
                 'assignmentId' => '0196a222-2222-7222-8222-222222222222',

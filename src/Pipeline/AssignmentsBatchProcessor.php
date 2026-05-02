@@ -36,6 +36,8 @@ final readonly class AssignmentsBatchProcessor
         $alreadySeen = 0;
         $sent = 0;
         $failed = 0;
+        $transportErrors = 0;
+        $httpStatusCodes = [];
         $assignmentResults = [];
         $assignmentErrors = [];
 
@@ -46,6 +48,8 @@ final readonly class AssignmentsBatchProcessor
                 $alreadySeen += $result->alreadySeen;
                 $sent += $result->sent;
                 $failed += $result->failed;
+                $transportErrors += $result->transportErrors;
+                $httpStatusCodes = $this->mergeHttpStatusCodes($httpStatusCodes, $result->httpStatusCodes);
                 $assignmentResults[] = new AssignmentBatchProcessingResult(
                     assignmentId: $assignment->assignmentId,
                     source: $assignment->sourceDisplayName,
@@ -53,8 +57,11 @@ final readonly class AssignmentsBatchProcessor
                     alreadySeen: $result->alreadySeen,
                     sent: $result->sent,
                     failed: $result->failed,
+                    httpStatusCodes: $result->httpStatusCodes,
+                    transportErrors: $result->transportErrors,
                 );
             } catch (\Throwable $exception) {
+                ++$transportErrors;
                 $assignmentErrors[] = [
                     'assignmentId' => $assignment->assignmentId,
                     'source' => $assignment->sourceDisplayName,
@@ -67,10 +74,13 @@ final readonly class AssignmentsBatchProcessor
                     alreadySeen: 0,
                     sent: 0,
                     failed: 0,
+                    transportErrors: 1,
                     error: $exception->getMessage(),
                 );
             }
         }
+
+        ksort($httpStatusCodes);
 
         $batchResult = new AssignmentsBatchProcessingResult(
             assignments: count($assignments),
@@ -81,6 +91,8 @@ final readonly class AssignmentsBatchProcessor
             assignmentResults: $assignmentResults,
             assignmentErrors: $assignmentErrors,
             lastError: $assignmentErrors[0]['error'] ?? '',
+            httpStatusCodes: $httpStatusCodes,
+            transportErrors: $transportErrors,
         );
 
         $this->writeStatus($batchResult);
@@ -97,6 +109,8 @@ final readonly class AssignmentsBatchProcessor
             'alreadySeen' => 0,
             'sent' => 0,
             'failed' => 0,
+            'httpStatusCodes' => [],
+            'transportErrors' => 0,
             'assignmentErrors' => [],
             'lastError' => $lastError,
         ]);
@@ -111,8 +125,25 @@ final readonly class AssignmentsBatchProcessor
             'alreadySeen' => $result->alreadySeen,
             'sent' => $result->sent,
             'failed' => $result->failed,
+            'httpStatusCodes' => $result->httpStatusCodes,
+            'transportErrors' => $result->transportErrors,
             'assignmentErrors' => $result->assignmentErrors,
             'lastError' => $result->lastError,
         ]);
+    }
+
+    /**
+     * @param array<int, int> $left
+     * @param array<int, int> $right
+     *
+     * @return array<int, int>
+     */
+    private function mergeHttpStatusCodes(array $left, array $right): array
+    {
+        foreach ($right as $statusCode => $count) {
+            $left[$statusCode] = ($left[$statusCode] ?? 0) + $count;
+        }
+
+        return $left;
     }
 }

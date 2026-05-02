@@ -9,6 +9,7 @@ final readonly class AssignmentsBatchProcessingResult
     /**
      * @param list<AssignmentBatchProcessingResult> $assignmentResults
      * @param list<array{assignmentId: string, source: string, error: string}> $assignmentErrors
+     * @param array<int, int> $httpStatusCodes
      */
     public function __construct(
         public int $assignments,
@@ -19,6 +20,8 @@ final readonly class AssignmentsBatchProcessingResult
         public array $assignmentResults,
         public array $assignmentErrors,
         public string $lastError,
+        public array $httpStatusCodes = [],
+        public int $transportErrors = 0,
     ) {
     }
 

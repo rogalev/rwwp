@@ -35,6 +35,8 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(0, $result->alreadySeen);
         self::assertSame(1, $result->sent);
         self::assertSame(0, $result->failed);
+        self::assertSame([200 => 1], $result->httpStatusCodes);
+        self::assertSame(0, $result->transportErrors);
         self::assertSame(['https://example.com/news/1'], $fetcher->fetchedUrls);
         self::assertCount(1, $sender->sentArticles);
         self::assertSame('0196a222-2222-7222-8222-222222222222', $sender->sentArticles[0]['assignmentId']);
@@ -59,6 +61,8 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(1, $result->alreadySeen);
         self::assertSame(0, $result->sent);
         self::assertSame(0, $result->failed);
+        self::assertSame([], $result->httpStatusCodes);
+        self::assertSame(0, $result->transportErrors);
         self::assertSame([], $fetcher->fetchedUrls);
         self::assertSame([], $sender->sentArticles);
         self::assertSame([], $state->seenMarks);
@@ -79,11 +83,38 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(0, $result->alreadySeen);
         self::assertSame(0, $result->sent);
         self::assertSame(1, $result->failed);
+        self::assertSame([200 => 1], $result->httpStatusCodes);
+        self::assertSame(1, $result->transportErrors);
         self::assertSame([], $state->parsedMarks);
         self::assertSame([
             [
                 'externalUrl' => 'https://example.com/news/1',
                 'error' => 'Main API failed.',
+            ],
+        ], $state->failedMarks);
+    }
+
+    public function testCountsTransportErrorWhenFetchingFails(): void
+    {
+        $state = new RawProcessorSeenStore(alreadySeen: false);
+        $fetcher = new RawProcessorDocumentFetcher(fetchException: new \RuntimeException('Network timeout.'));
+        $sender = new RawProcessorArticleSender();
+        $processor = $this->processor($state, $fetcher, $sender, [
+            $this->articleRef('https://example.com/news/1'),
+        ]);
+
+        $result = $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame(1, $result->found);
+        self::assertSame(0, $result->sent);
+        self::assertSame(1, $result->failed);
+        self::assertSame([], $result->httpStatusCodes);
+        self::assertSame(1, $result->transportErrors);
+        self::assertSame([], $sender->sentArticles);
+        self::assertSame([
+            [
+                'externalUrl' => 'https://example.com/news/1',
+                'error' => 'Network timeout.',
             ],
         ], $state->failedMarks);
     }
@@ -210,9 +241,18 @@ final class RawProcessorDocumentFetcher implements DocumentFetcherInterface
      */
     public array $fetchedUrls = [];
 
+    public function __construct(
+        private readonly ?\Throwable $fetchException = null,
+    ) {
+    }
+
     public function fetch(string $url): FetchedDocument
     {
         $this->fetchedUrls[] = $url;
+
+        if ($this->fetchException !== null) {
+            throw $this->fetchException;
+        }
 
         return new FetchedDocument(
             url: $url,
