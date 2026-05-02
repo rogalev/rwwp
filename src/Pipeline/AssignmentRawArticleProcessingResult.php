@@ -16,6 +16,7 @@ final readonly class AssignmentRawArticleProcessingResult
         public int $failed,
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
+        public string $stage = 'listing',
     ) {
     }
 }

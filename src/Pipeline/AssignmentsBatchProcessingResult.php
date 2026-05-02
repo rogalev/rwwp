@@ -22,6 +22,7 @@ final readonly class AssignmentsBatchProcessingResult
         public string $lastError,
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
+        public string $stage = 'listing',
     ) {
     }
 

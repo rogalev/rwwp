@@ -36,6 +36,7 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(0, $result->alreadySeen);
         self::assertSame(1, $result->sent);
         self::assertSame(0, $result->failed);
+        self::assertSame('raw_article_send', $result->stage);
         self::assertSame([200 => 1], $result->httpStatusCodes);
         self::assertSame(0, $result->transportErrors);
         self::assertSame(['https://example.com/news/1'], $fetcher->fetchedUrls);
@@ -115,6 +116,7 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(1, $result->alreadySeen);
         self::assertSame(0, $result->sent);
         self::assertSame(0, $result->failed);
+        self::assertSame('listing', $result->stage);
         self::assertSame([], $result->httpStatusCodes);
         self::assertSame(0, $result->transportErrors);
         self::assertSame([], $fetcher->fetchedUrls);
@@ -138,6 +140,7 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(0, $result->alreadySeen);
         self::assertSame(0, $result->sent);
         self::assertSame(1, $result->failed);
+        self::assertSame('raw_article_send', $result->stage);
         self::assertSame([200 => 1], $result->httpStatusCodes);
         self::assertSame(1, $result->transportErrors);
         self::assertSame([], $state->parsedMarks);
@@ -175,6 +178,7 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame(1, $result->found);
         self::assertSame(0, $result->sent);
         self::assertSame(1, $result->failed);
+        self::assertSame('article_fetch', $result->stage);
         self::assertSame([], $result->httpStatusCodes);
         self::assertSame(1, $result->transportErrors);
         self::assertSame([], $sender->sentArticles);

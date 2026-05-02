@@ -18,6 +18,7 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
             'failed' => 1,
             'httpStatusCodes' => ['200' => 3],
             'transportErrors' => 2,
+            'stage' => 'raw_article_send',
             'lastError' => '',
         ]);
 
@@ -31,6 +32,7 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
             'failedArticles' => 1,
             'httpStatusCodes' => ['200' => 3],
             'transportErrors' => 2,
+            'stage' => 'raw_article_send',
         ], $payload->metrics);
     }
 

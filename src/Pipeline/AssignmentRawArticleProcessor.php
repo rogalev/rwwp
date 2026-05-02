@@ -46,6 +46,7 @@ final readonly class AssignmentRawArticleProcessor
         $httpStatusCodes = [];
         $transportErrors = 0;
         $httpHeaders = $this->httpHeaders($assignment);
+        $lastStage = 'listing';
 
         foreach ($provider->fetchArticleRefs($source) as $articleRef) {
             ++$found;
@@ -67,11 +68,13 @@ final readonly class AssignmentRawArticleProcessor
             );
 
             $stage = 'article_fetch';
+            $lastStage = $stage;
 
             try {
                 $document = $this->documentFetcher->fetch($articleRef->externalUrl, $httpHeaders);
                 $httpStatusCodes[$document->statusCode] = ($httpStatusCodes[$document->statusCode] ?? 0) + 1;
                 $stage = 'raw_article_send';
+                $lastStage = $stage;
                 $this->rawArticleSender->send(
                     $assignment->assignmentId,
                     $articleRef->externalUrl,
@@ -98,6 +101,7 @@ final readonly class AssignmentRawArticleProcessor
             failed: $failed,
             httpStatusCodes: $httpStatusCodes,
             transportErrors: $transportErrors,
+            stage: $lastStage,
         );
     }
 

@@ -24,6 +24,7 @@ final class HeartbeatSendCommandTest extends TestCase
             'failed' => 1,
             'httpStatusCodes' => ['200' => 3, '403' => 1],
             'transportErrors' => 2,
+            'stage' => 'raw_article_send',
             'lastError' => '',
         ]);
         $sender = new RecordingHeartbeatSender();
@@ -46,6 +47,7 @@ final class HeartbeatSendCommandTest extends TestCase
             'failedArticles' => 1,
             'httpStatusCodes' => ['200' => 3, '403' => 1],
             'transportErrors' => 2,
+            'stage' => 'raw_article_send',
         ], $sender->metrics);
         self::assertStringContainsString('Heartbeat отправлен в main.', $commandTester->getDisplay());
     }

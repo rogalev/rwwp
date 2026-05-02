@@ -61,11 +61,17 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
             'failedArticles' => $this->intValue($status['failed'] ?? null),
             'httpStatusCodes' => \is_array($status['httpStatusCodes'] ?? null) ? $status['httpStatusCodes'] : [],
             'transportErrors' => $this->intValue($status['transportErrors'] ?? null),
+            'stage' => $this->stringValue($status['stage'] ?? null),
         ];
     }
 
     private function intValue(mixed $value): int
     {
         return \is_int($value) ? $value : 0;
+    }
+
+    private function stringValue(mixed $value): string
+    {
+        return \is_string($value) ? $value : '';
     }
 }

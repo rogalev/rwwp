@@ -38,6 +38,7 @@ final readonly class AssignmentsBatchProcessor
         $failed = 0;
         $transportErrors = 0;
         $httpStatusCodes = [];
+        $stage = 'listing';
         $assignmentResults = [];
         $assignmentErrors = [];
 
@@ -49,6 +50,7 @@ final readonly class AssignmentsBatchProcessor
                 $sent += $result->sent;
                 $failed += $result->failed;
                 $transportErrors += $result->transportErrors;
+                $stage = $result->stage;
                 $httpStatusCodes = $this->mergeHttpStatusCodes($httpStatusCodes, $result->httpStatusCodes);
                 $assignmentResults[] = new AssignmentBatchProcessingResult(
                     assignmentId: $assignment->assignmentId,
@@ -62,6 +64,7 @@ final readonly class AssignmentsBatchProcessor
                 );
             } catch (\Throwable $exception) {
                 ++$transportErrors;
+                $stage = 'listing';
                 $assignmentErrors[] = [
                     'assignmentId' => $assignment->assignmentId,
                     'source' => $assignment->sourceDisplayName,
@@ -93,6 +96,7 @@ final readonly class AssignmentsBatchProcessor
             lastError: $assignmentErrors[0]['error'] ?? '',
             httpStatusCodes: $httpStatusCodes,
             transportErrors: $transportErrors,
+            stage: $stage,
         );
 
         $this->writeStatus($batchResult);
@@ -111,6 +115,7 @@ final readonly class AssignmentsBatchProcessor
             'failed' => 0,
             'httpStatusCodes' => [],
             'transportErrors' => 0,
+            'stage' => 'listing',
             'assignmentErrors' => [],
             'lastError' => $lastError,
         ]);
@@ -127,6 +132,7 @@ final readonly class AssignmentsBatchProcessor
             'failed' => $result->failed,
             'httpStatusCodes' => $result->httpStatusCodes,
             'transportErrors' => $result->transportErrors,
+            'stage' => $result->stage,
             'assignmentErrors' => $result->assignmentErrors,
             'lastError' => $result->lastError,
         ]);

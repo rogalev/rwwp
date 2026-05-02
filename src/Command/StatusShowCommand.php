@@ -60,6 +60,7 @@ final class StatusShowCommand extends Command
             ['Already seen' => $this->stringValue($status['alreadySeen'] ?? null)],
             ['Sent' => $this->stringValue($status['sent'] ?? null)],
             ['Failed' => $this->stringValue($status['failed'] ?? null)],
+            ['Stage' => $this->stringValue($status['stage'] ?? null)],
             ['HTTP statuses' => $this->stringValue($status['httpStatusCodes'] ?? null)],
             ['Transport errors' => $this->stringValue($status['transportErrors'] ?? null)],
             ['Last error' => $this->stringValue($status['lastError'] ?? null)],
