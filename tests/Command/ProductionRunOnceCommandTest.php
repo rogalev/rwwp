@@ -181,7 +181,7 @@ final readonly class ProductionListingProvider implements ArticleListingProvider
 
 final readonly class ProductionDocumentFetcher implements DocumentFetcherInterface
 {
-    public function fetch(string $url): FetchedDocument
+    public function fetch(string $url, array $headers = []): FetchedDocument
     {
         return new FetchedDocument(
             url: $url,

@@ -143,7 +143,7 @@ final readonly class AssignmentProcessListingProvider implements ArticleListingP
 
 final readonly class AssignmentProcessDocumentFetcher implements DocumentFetcherInterface
 {
-    public function fetch(string $url): FetchedDocument
+    public function fetch(string $url, array $headers = []): FetchedDocument
     {
         return new FetchedDocument(
             url: $url,

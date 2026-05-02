@@ -15,6 +15,12 @@ use App\State\SeenArticleStoreInterface;
 
 final readonly class AssignmentRawArticleProcessor
 {
+    private const ALLOWED_HTTP_HEADERS = [
+        'accept' => 'Accept',
+        'accept-language' => 'Accept-Language',
+        'referer' => 'Referer',
+    ];
+
     public function __construct(
         private ArticleListingProviderRegistry $listingProviderRegistry,
         private DocumentFetcherInterface $documentFetcher,
@@ -39,6 +45,7 @@ final readonly class AssignmentRawArticleProcessor
         $attempted = 0;
         $httpStatusCodes = [];
         $transportErrors = 0;
+        $httpHeaders = $this->httpHeaders($assignment);
 
         foreach ($provider->fetchArticleRefs($source) as $articleRef) {
             ++$found;
@@ -62,7 +69,7 @@ final readonly class AssignmentRawArticleProcessor
             $stage = 'article_fetch';
 
             try {
-                $document = $this->documentFetcher->fetch($articleRef->externalUrl);
+                $document = $this->documentFetcher->fetch($articleRef->externalUrl, $httpHeaders);
                 $httpStatusCodes[$document->statusCode] = ($httpStatusCodes[$document->statusCode] ?? 0) + 1;
                 $stage = 'raw_article_send';
                 $this->rawArticleSender->send(
@@ -111,6 +118,33 @@ final readonly class AssignmentRawArticleProcessor
             'html', ListingSourceType::HtmlSection->value => ListingSourceType::HtmlSection,
             default => throw new \InvalidArgumentException(sprintf('Unsupported listing mode "%s".', $listingMode)),
         };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function httpHeaders(ParserAssignment $assignment): array
+    {
+        $headers = $assignment->config['httpHeaders'] ?? null;
+        if (!\is_array($headers)) {
+            return [];
+        }
+
+        $safeHeaders = [];
+        foreach ($headers as $name => $value) {
+            if (!\is_string($name) || !\is_string($value) || trim($value) === '') {
+                continue;
+            }
+
+            $normalizedName = strtolower(trim($name));
+            if (!isset(self::ALLOWED_HTTP_HEADERS[$normalizedName])) {
+                continue;
+            }
+
+            $safeHeaders[self::ALLOWED_HTTP_HEADERS[$normalizedName]] = trim($value);
+        }
+
+        return $safeHeaders;
     }
 
     private function sendFailure(

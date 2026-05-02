@@ -22,7 +22,7 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
     ) {
     }
 
-    public function fetch(string $url): FetchedDocument
+    public function fetch(string $url, array $headers = []): FetchedDocument
     {
         $userAgent = $this->userAgentProvider->next();
         $lastTransportException = null;
@@ -30,7 +30,7 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
         for ($attempt = 1; $attempt <= $this->maxAttempts(); ++$attempt) {
             try {
                 $this->sleepBeforeRequest();
-                $response = $this->request($url, $userAgent);
+                $response = $this->request($url, $userAgent, $headers);
                 $statusCode = $response->getStatusCode();
 
                 if ($statusCode >= 200 && $statusCode < 300) {
@@ -63,13 +63,17 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
         throw DocumentFetchException::forTransportError($url, $lastTransportException);
     }
 
-    private function request(string $url, string $userAgent): ResponseInterface
+    /**
+     * @param array<string, string> $headers
+     */
+    private function request(string $url, string $userAgent, array $headers): ResponseInterface
     {
         return $this->httpClient->request('GET', $url, [
             'headers' => [
                 'User-Agent' => $userAgent,
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.9',
+                ...$headers,
             ],
             'timeout' => $this->timeout,
             'max_duration' => $this->maxDuration,

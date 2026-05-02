@@ -47,6 +47,59 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         self::assertSame([], $state->failedMarks);
     }
 
+    public function testUsesSafeHttpHeadersFromAssignmentConfig(): void
+    {
+        $state = new RawProcessorSeenStore(alreadySeen: false);
+        $fetcher = new RawProcessorDocumentFetcher();
+        $sender = new RawProcessorArticleSender();
+        $processor = $this->processor($state, $fetcher, $sender, [
+            $this->articleRef('https://example.com/news/1'),
+        ]);
+
+        $processor->process($this->assignment(config: [
+            'httpHeaders' => [
+                'Accept-Language' => 'ru-RU,ru;q=0.9',
+                'Referer' => 'https://example.com/',
+                'Cookie' => 'secret=1',
+                'Authorization' => 'Bearer secret',
+                'X-Custom' => 'ignored',
+                'Accept' => 'text/html',
+            ],
+        ]), limit: 10);
+
+        self::assertSame([
+            [
+                'url' => 'https://example.com/news/1',
+                'headers' => [
+                    'Accept-Language' => 'ru-RU,ru;q=0.9',
+                    'Referer' => 'https://example.com/',
+                    'Accept' => 'text/html',
+                ],
+            ],
+        ], $fetcher->fetches);
+    }
+
+    public function testIgnoresInvalidHttpHeadersConfig(): void
+    {
+        $state = new RawProcessorSeenStore(alreadySeen: false);
+        $fetcher = new RawProcessorDocumentFetcher();
+        $sender = new RawProcessorArticleSender();
+        $processor = $this->processor($state, $fetcher, $sender, [
+            $this->articleRef('https://example.com/news/1'),
+        ]);
+
+        $processor->process($this->assignment(config: [
+            'httpHeaders' => 'not-an-object',
+        ]), limit: 10);
+
+        self::assertSame([
+            [
+                'url' => 'https://example.com/news/1',
+                'headers' => [],
+            ],
+        ], $fetcher->fetches);
+    }
+
     public function testSkipsAlreadySeenRef(): void
     {
         $state = new RawProcessorSeenStore(alreadySeen: true);
@@ -187,7 +240,10 @@ final class AssignmentRawArticleProcessorTest extends TestCase
         );
     }
 
-    private function assignment(): ParserAssignment
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function assignment(array $config = []): ParserAssignment
     {
         return new ParserAssignment(
             assignmentId: '0196a222-2222-7222-8222-222222222222',
@@ -199,7 +255,7 @@ final class AssignmentRawArticleProcessorTest extends TestCase
             listingCheckIntervalSeconds: 300,
             articleFetchIntervalSeconds: 10,
             requestTimeoutSeconds: 15,
-            config: [],
+            config: $config,
         );
     }
 
@@ -292,14 +348,23 @@ final class RawProcessorDocumentFetcher implements DocumentFetcherInterface
      */
     public array $fetchedUrls = [];
 
+    /**
+     * @var list<array{url: string, headers: array<string, string>}>
+     */
+    public array $fetches = [];
+
     public function __construct(
         private readonly ?\Throwable $fetchException = null,
     ) {
     }
 
-    public function fetch(string $url): FetchedDocument
+    public function fetch(string $url, array $headers = []): FetchedDocument
     {
         $this->fetchedUrls[] = $url;
+        $this->fetches[] = [
+            'url' => $url,
+            'headers' => $headers,
+        ];
 
         if ($this->fetchException !== null) {
             throw $this->fetchException;

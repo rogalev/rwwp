@@ -96,7 +96,7 @@ final readonly class FakeHtmlDocumentFetcher implements DocumentFetcherInterface
     ) {
     }
 
-    public function fetch(string $url): FetchedDocument
+    public function fetch(string $url, array $headers = []): FetchedDocument
     {
         return new FetchedDocument(
             url: $url,

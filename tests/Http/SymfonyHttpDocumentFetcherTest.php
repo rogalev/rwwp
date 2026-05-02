@@ -54,6 +54,22 @@ final class SymfonyHttpDocumentFetcherTest extends TestCase
         $fetcher->fetch('https://example.com/news/42');
     }
 
+    public function testFetchMergesCustomHeadersWithDefaults(): void
+    {
+        $response = new MockResponse('Article HTML', ['http_code' => 200]);
+        $fetcher = $this->fetcher(new MockHttpClient($response));
+
+        $fetcher->fetch('https://example.com/news/42', [
+            'Accept-Language' => 'ru-RU,ru;q=0.9',
+            'Referer' => 'https://example.com/',
+        ]);
+
+        $headers = $response->getRequestOptions()['headers'];
+        self::assertContains('User-Agent: PHPUnit User-Agent', $headers);
+        self::assertContains('Accept-Language: ru-RU,ru;q=0.9', $headers);
+        self::assertContains('Referer: https://example.com/', $headers);
+    }
+
     private function fetcher(MockHttpClient $httpClient): SymfonyHttpDocumentFetcher
     {
         return new SymfonyHttpDocumentFetcher(

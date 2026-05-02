@@ -6,5 +6,8 @@ namespace App\Http;
 
 interface DocumentFetcherInterface
 {
-    public function fetch(string $url): FetchedDocument;
+    /**
+     * @param array<string, string> $headers
+     */
+    public function fetch(string $url, array $headers = []): FetchedDocument;
 }
