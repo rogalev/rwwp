@@ -14,6 +14,7 @@ use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiAssignmentsProviderInterface;
 use App\MainApi\MainApiHeartbeatSenderInterface;
+use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
@@ -100,6 +101,7 @@ final class ProductionRunOnceCommandTest extends TestCase
                     new ArticleListingProviderRegistry([new ProductionListingProvider($failingAssignmentId)]),
                     new ProductionDocumentFetcher(),
                     new ProductionRawArticleSender(),
+                    new ProductionFailureSender(),
                     new ProductionSeenStore(),
                 ),
                 new ParserRunStatusWriter($statusPath),
@@ -207,6 +209,21 @@ final readonly class ProductionRawArticleSender implements MainApiRawArticleSend
             externalUrl: $externalUrl,
             contentHash: 'content-hash',
         );
+    }
+}
+
+final readonly class ProductionFailureSender implements MainApiParserFailureSenderInterface
+{
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function send(
+        string $assignmentId,
+        string $stage,
+        string $message,
+        array $context,
+        \DateTimeImmutable $occurredAt,
+    ): void {
     }
 }
 

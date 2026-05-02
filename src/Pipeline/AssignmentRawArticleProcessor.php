@@ -8,6 +8,7 @@ use App\Http\DocumentFetcherInterface;
 use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
+use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\State\SeenArticleStoreInterface;
@@ -18,6 +19,7 @@ final readonly class AssignmentRawArticleProcessor
         private ArticleListingProviderRegistry $listingProviderRegistry,
         private DocumentFetcherInterface $documentFetcher,
         private MainApiRawArticleSenderInterface $rawArticleSender,
+        private MainApiParserFailureSenderInterface $failureSender,
         private SeenArticleStoreInterface $seenArticleStore,
     ) {
     }
@@ -57,9 +59,12 @@ final readonly class AssignmentRawArticleProcessor
                 $articleRef->categoryCode,
             );
 
+            $stage = 'article_fetch';
+
             try {
                 $document = $this->documentFetcher->fetch($articleRef->externalUrl);
                 $httpStatusCodes[$document->statusCode] = ($httpStatusCodes[$document->statusCode] ?? 0) + 1;
+                $stage = 'raw_article_send';
                 $this->rawArticleSender->send(
                     $assignment->assignmentId,
                     $articleRef->externalUrl,
@@ -71,6 +76,7 @@ final readonly class AssignmentRawArticleProcessor
                 ++$sent;
             } catch (\Throwable $exception) {
                 $this->seenArticleStore->markFailed($articleRef->externalUrl, $exception->getMessage());
+                $this->sendFailure($assignment, $stage, $articleRef->externalUrl, $exception);
                 ++$failed;
                 ++$transportErrors;
             }
@@ -105,5 +111,27 @@ final readonly class AssignmentRawArticleProcessor
             'html', ListingSourceType::HtmlSection->value => ListingSourceType::HtmlSection,
             default => throw new \InvalidArgumentException(sprintf('Unsupported listing mode "%s".', $listingMode)),
         };
+    }
+
+    private function sendFailure(
+        ParserAssignment $assignment,
+        string $stage,
+        string $externalUrl,
+        \Throwable $exception,
+    ): void {
+        try {
+            $this->failureSender->send(
+                assignmentId: $assignment->assignmentId,
+                stage: $stage,
+                message: $exception->getMessage(),
+                context: [
+                    'externalUrl' => $externalUrl,
+                    'exceptionClass' => $exception::class,
+                ],
+                occurredAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            );
+        } catch (\Throwable) {
+            // Failure reporting is diagnostic and must not stop assignment processing.
+        }
     }
 }

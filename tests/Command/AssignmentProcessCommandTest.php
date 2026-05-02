@@ -13,6 +13,7 @@ use App\Listing\ExternalArticleRef;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiAssignmentsProviderInterface;
+use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
@@ -81,6 +82,7 @@ final class AssignmentProcessCommandTest extends TestCase
                 new ArticleListingProviderRegistry([new AssignmentProcessListingProvider()]),
                 new AssignmentProcessDocumentFetcher(),
                 new AssignmentProcessRawArticleSender(),
+                new AssignmentProcessFailureSender(),
                 new AssignmentProcessSeenStore(),
             ),
         );
@@ -169,6 +171,21 @@ final readonly class AssignmentProcessRawArticleSender implements MainApiRawArti
             externalUrl: $externalUrl,
             contentHash: 'content-hash',
         );
+    }
+}
+
+final readonly class AssignmentProcessFailureSender implements MainApiParserFailureSenderInterface
+{
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function send(
+        string $assignmentId,
+        string $stage,
+        string $message,
+        array $context,
+        \DateTimeImmutable $occurredAt,
+    ): void {
     }
 }
 

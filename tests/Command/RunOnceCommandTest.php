@@ -13,6 +13,7 @@ use App\Listing\ExternalArticleRef;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiAssignmentsProviderInterface;
+use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
@@ -101,6 +102,7 @@ final class RunOnceCommandTest extends TestCase
                 new ArticleListingProviderRegistry([new RunOnceListingProvider($failingAssignmentId)]),
                 new RunOnceDocumentFetcher(),
                 new RunOnceRawArticleSender(),
+                new RunOnceFailureSender(),
                 new RunOnceSeenStore(),
             ),
             new ParserRunStatusWriter($statusPath),
@@ -218,6 +220,21 @@ final readonly class RunOnceRawArticleSender implements MainApiRawArticleSenderI
             externalUrl: $externalUrl,
             contentHash: 'content-hash',
         );
+    }
+}
+
+final readonly class RunOnceFailureSender implements MainApiParserFailureSenderInterface
+{
+    /**
+     * @param array<string, mixed> $context
+     */
+    public function send(
+        string $assignmentId,
+        string $stage,
+        string $message,
+        array $context,
+        \DateTimeImmutable $occurredAt,
+    ): void {
     }
 }
 
