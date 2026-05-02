@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\MainApi\MainApiHeartbeatSenderInterface;
+use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusReader;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,6 +21,7 @@ final class HeartbeatSendCommand extends Command
 {
     public function __construct(
         private readonly ParserRunStatusReader $statusReader,
+        private readonly ParserRunStatusHeartbeatPayloadFactory $payloadFactory,
         private readonly MainApiHeartbeatSenderInterface $heartbeatSender,
     ) {
         parent::__construct();
@@ -31,11 +33,12 @@ final class HeartbeatSendCommand extends Command
 
         try {
             $status = $this->statusReader->read();
+            $payload = $this->payloadFactory->create($status);
             $this->heartbeatSender->send(
-                checkedAt: $this->checkedAt($status),
-                status: $this->status($status),
-                message: $this->message($status),
-                metrics: $this->metrics($status),
+                checkedAt: $payload->checkedAt,
+                status: $payload->status,
+                message: $payload->message,
+                metrics: $payload->metrics,
             );
         } catch (\Throwable $exception) {
             $io->error($exception->getMessage());
@@ -46,55 +49,5 @@ final class HeartbeatSendCommand extends Command
         $io->success('Heartbeat отправлен в main.');
 
         return Command::SUCCESS;
-    }
-
-    /**
-     * @param array<string, mixed> $status
-     */
-    private function checkedAt(array $status): \DateTimeImmutable
-    {
-        if (isset($status['checkedAt']) && \is_string($status['checkedAt']) && trim($status['checkedAt']) !== '') {
-            return new \DateTimeImmutable($status['checkedAt']);
-        }
-
-        return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-    }
-
-    /**
-     * @param array<string, mixed> $status
-     */
-    private function status(array $status): string
-    {
-        return $this->message($status) === '' ? 'ok' : 'error';
-    }
-
-    /**
-     * @param array<string, mixed> $status
-     */
-    private function message(array $status): string
-    {
-        return isset($status['lastError']) && \is_string($status['lastError']) ? $status['lastError'] : '';
-    }
-
-    /**
-     * @param array<string, mixed> $status
-     *
-     * @return array<string, mixed>
-     */
-    private function metrics(array $status): array
-    {
-        return [
-            'durationSeconds' => $this->intValue($status['durationSeconds'] ?? null),
-            'foundLinks' => $this->intValue($status['found'] ?? null),
-            'acceptedRawArticles' => $this->intValue($status['sent'] ?? null),
-            'failedArticles' => $this->intValue($status['failed'] ?? null),
-            'httpStatusCodes' => \is_array($status['httpStatusCodes'] ?? null) ? $status['httpStatusCodes'] : [],
-            'transportErrors' => $this->intValue($status['transportErrors'] ?? null),
-        ];
-    }
-
-    private function intValue(mixed $value): int
-    {
-        return \is_int($value) ? $value : 0;
     }
 }

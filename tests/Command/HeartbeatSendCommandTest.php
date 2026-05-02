@@ -6,6 +6,7 @@ namespace App\Tests\Command;
 
 use App\Command\HeartbeatSendCommand;
 use App\MainApi\MainApiHeartbeatSenderInterface;
+use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusReader;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
@@ -26,7 +27,11 @@ final class HeartbeatSendCommandTest extends TestCase
             'lastError' => '',
         ]);
         $sender = new RecordingHeartbeatSender();
-        $commandTester = new CommandTester(new HeartbeatSendCommand(new ParserRunStatusReader($statusPath), $sender));
+        $commandTester = new CommandTester(new HeartbeatSendCommand(
+            new ParserRunStatusReader($statusPath),
+            new ParserRunStatusHeartbeatPayloadFactory(),
+            $sender,
+        ));
 
         $exitCode = $commandTester->execute([]);
 
@@ -55,7 +60,11 @@ final class HeartbeatSendCommandTest extends TestCase
             'lastError' => 'Main API unavailable.',
         ]);
         $sender = new RecordingHeartbeatSender();
-        $commandTester = new CommandTester(new HeartbeatSendCommand(new ParserRunStatusReader($statusPath), $sender));
+        $commandTester = new CommandTester(new HeartbeatSendCommand(
+            new ParserRunStatusReader($statusPath),
+            new ParserRunStatusHeartbeatPayloadFactory(),
+            $sender,
+        ));
 
         $exitCode = $commandTester->execute([]);
 
@@ -72,6 +81,7 @@ final class HeartbeatSendCommandTest extends TestCase
         ]);
         $commandTester = new CommandTester(new HeartbeatSendCommand(
             new ParserRunStatusReader($statusPath),
+            new ParserRunStatusHeartbeatPayloadFactory(),
             new FailingHeartbeatSender(new \RuntimeException('Heartbeat rejected.')),
         ));
 

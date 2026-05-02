@@ -1,4 +1,4 @@
-.PHONY: build clean console console-list parser-list php status test test-fetch
+.PHONY: build clean console console-list parser-list php production-run status test test-fetch
 
 build:
 	docker compose build php
@@ -17,6 +17,9 @@ parser-list:
 
 php:
 	docker compose run --rm php php $(cmd)
+
+production-run:
+	docker compose run --rm php php bin/console parser:production:run-once
 
 status:
 	docker compose run --rm php php bin/console parser:status:show
