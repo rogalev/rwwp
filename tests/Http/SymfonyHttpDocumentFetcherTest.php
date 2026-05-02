@@ -10,6 +10,7 @@ use App\Http\UserAgentProviderInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 final class SymfonyHttpDocumentFetcherTest extends TestCase
 {
@@ -28,6 +29,38 @@ final class SymfonyHttpDocumentFetcherTest extends TestCase
         self::assertSame('Article HTML', $document->content);
         self::assertSame('text/html', $document->contentType);
         self::assertSame('PHPUnit User-Agent', $document->userAgent);
+    }
+
+    public function testFetchRetriesTooManyRequestsAndReturnsSuccessfulDocument(): void
+    {
+        $firstResponse = new MockResponse('Too many requests', ['http_code' => 429]);
+        $secondResponse = new MockResponse('Article HTML', ['http_code' => 200]);
+        $fetcher = $this->fetcher(new MockHttpClient([$firstResponse, $secondResponse]));
+
+        $document = $fetcher->fetch('https://example.com/news/42');
+
+        self::assertSame(200, $document->statusCode);
+        self::assertSame('Article HTML', $document->content);
+    }
+
+    public function testFetchRetriesTransportErrorAndReturnsSuccessfulDocument(): void
+    {
+        $attempt = 0;
+        $fetcher = $this->fetcher(new MockHttpClient(
+            static function () use (&$attempt): MockResponse {
+                ++$attempt;
+                if ($attempt === 1) {
+                    throw new TestTransportException('Connection reset.');
+                }
+
+                return new MockResponse('Article HTML', ['http_code' => 200]);
+            },
+        ));
+
+        $document = $fetcher->fetch('https://example.com/news/42');
+
+        self::assertSame(200, $document->statusCode);
+        self::assertSame('Article HTML', $document->content);
     }
 
     public function testFetchDoesNotRetryClientError(): void
@@ -91,4 +124,8 @@ final readonly class FixedUserAgentProvider implements UserAgentProviderInterfac
     {
         return 'PHPUnit User-Agent';
     }
+}
+
+final class TestTransportException extends \RuntimeException implements TransportExceptionInterface
+{
 }
