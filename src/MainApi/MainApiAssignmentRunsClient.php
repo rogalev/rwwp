@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MainApi;
 
+use App\Diagnostics\DiagnosticLoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class MainApiAssignmentRunsClient implements MainApiAssignmentRunsSenderInterface
@@ -13,6 +14,7 @@ final readonly class MainApiAssignmentRunsClient implements MainApiAssignmentRun
         private string $baseUrl,
         private string $parserInstanceId,
         private string $apiKey,
+        private DiagnosticLoggerInterface $diagnostics,
     ) {
     }
 
@@ -22,7 +24,15 @@ final readonly class MainApiAssignmentRunsClient implements MainApiAssignmentRun
             return;
         }
 
-        $response = $this->httpClient->request('POST', $this->url('/api/parser/v1/assignment-runs'), [
+        $url = $this->url('/api/parser/v1/assignment-runs');
+        $this->diagnostics->log('main_api.request', [
+            'operation' => 'assignment_runs',
+            'method' => 'POST',
+            'url' => $url,
+            'itemsCount' => count($items),
+        ]);
+
+        $response = $this->httpClient->request('POST', $url, [
             'headers' => [
                 'Content-Type: application/json',
                 'Accept: application/json',
@@ -54,6 +64,14 @@ final readonly class MainApiAssignmentRunsClient implements MainApiAssignmentRun
 
         $statusCode = $response->getStatusCode();
         $body = $response->getContent(false);
+        $this->diagnostics->log('main_api.response', [
+            'operation' => 'assignment_runs',
+            'method' => 'POST',
+            'url' => $url,
+            'statusCode' => $statusCode,
+            'bodyPreview' => $body,
+        ]);
+
         if ($statusCode !== 201) {
             throw MainApiRequestFailed::forUnexpectedStatus($statusCode, $body, 'assignment runs');
         }

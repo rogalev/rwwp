@@ -1,4 +1,4 @@
-.PHONY: build clean console console-list daemon-logs daemon-restart daemon-start daemon-stop parser-list php production-run status test test-fetch
+.PHONY: build clean console console-list daemon-logs daemon-restart daemon-start daemon-stop diagnostic-clear diagnostic-tail parser-list php production-run status test test-fetch
 
 DAEMON_NAME ?= russiaww-parser-daemon
 interval ?= 30
@@ -21,6 +21,12 @@ daemon-stop:
 	-docker rm $(DAEMON_NAME)
 
 daemon-restart: daemon-stop daemon-start
+
+diagnostic-tail:
+	tail -f var/log/parser-diagnostic.ndjson
+
+diagnostic-clear:
+	rm -f var/log/parser-diagnostic.ndjson
 
 console:
 	docker compose run --rm php php bin/console $(cmd)

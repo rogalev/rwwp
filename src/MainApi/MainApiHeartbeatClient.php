@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MainApi;
 
+use App\Diagnostics\DiagnosticLoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class MainApiHeartbeatClient implements MainApiHeartbeatSenderInterface
@@ -13,6 +14,7 @@ final readonly class MainApiHeartbeatClient implements MainApiHeartbeatSenderInt
         private string $baseUrl,
         private string $parserInstanceId,
         private string $apiKey,
+        private DiagnosticLoggerInterface $diagnostics,
     ) {
     }
 
@@ -25,7 +27,17 @@ final readonly class MainApiHeartbeatClient implements MainApiHeartbeatSenderInt
         string $message,
         array $metrics,
     ): void {
-        $response = $this->httpClient->request('POST', $this->url('/api/parser/v1/heartbeat'), [
+        $url = $this->url('/api/parser/v1/heartbeat');
+        $this->diagnostics->log('main_api.request', [
+            'operation' => 'heartbeat',
+            'method' => 'POST',
+            'url' => $url,
+            'status' => $status,
+            'message' => $message,
+            'metricKeys' => array_keys($metrics),
+        ]);
+
+        $response = $this->httpClient->request('POST', $url, [
             'headers' => [
                 'Content-Type: application/json',
                 'Accept: application/json',
@@ -42,6 +54,14 @@ final readonly class MainApiHeartbeatClient implements MainApiHeartbeatSenderInt
 
         $statusCode = $response->getStatusCode();
         $body = $response->getContent(false);
+        $this->diagnostics->log('main_api.response', [
+            'operation' => 'heartbeat',
+            'method' => 'POST',
+            'url' => $url,
+            'statusCode' => $statusCode,
+            'bodyPreview' => $body,
+        ]);
+
         if ($statusCode !== 200) {
             throw MainApiRequestFailed::forUnexpectedStatus($statusCode, $body);
         }

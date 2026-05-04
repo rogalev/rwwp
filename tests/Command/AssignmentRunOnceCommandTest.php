@@ -24,6 +24,7 @@ use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use App\Tests\Support\InMemoryPendingArticleQueue;
+use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -115,6 +116,7 @@ final class AssignmentRunOnceCommandTest extends TestCase
                     $seenStore,
                     $queue,
                     $failureSender,
+                    new NullDiagnosticLogger(),
                 ),
                 new AssignmentArticleFetchProcessor(
                     $queue,
@@ -122,6 +124,7 @@ final class AssignmentRunOnceCommandTest extends TestCase
                     new AssignmentRunOnceRawArticleSender(),
                     $failureSender,
                     $seenStore,
+                    new NullDiagnosticLogger(),
                 ),
             ),
         );

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MainApi;
 
+use App\Diagnostics\DiagnosticLoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProviderInterface
@@ -13,6 +14,7 @@ final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProvi
         private string $baseUrl,
         private string $parserInstanceId,
         private string $apiKey,
+        private DiagnosticLoggerInterface $diagnostics,
     ) {
     }
 
@@ -21,7 +23,14 @@ final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProvi
      */
     public function list(): array
     {
-        $response = $this->httpClient->request('GET', $this->url('/api/parser/v1/assignments'), [
+        $url = $this->url('/api/parser/v1/assignments');
+        $this->diagnostics->log('main_api.request', [
+            'operation' => 'assignments',
+            'method' => 'GET',
+            'url' => $url,
+        ]);
+
+        $response = $this->httpClient->request('GET', $url, [
             'headers' => [
                 'Accept: application/json',
                 'X-Parser-Instance-Id: '.$this->parserInstanceId,
@@ -31,6 +40,14 @@ final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProvi
 
         $statusCode = $response->getStatusCode();
         $body = $response->getContent(false);
+        $this->diagnostics->log('main_api.response', [
+            'operation' => 'assignments',
+            'method' => 'GET',
+            'url' => $url,
+            'statusCode' => $statusCode,
+            'bodyPreview' => $body,
+        ]);
+
         if ($statusCode !== 200) {
             throw MainApiRequestFailed::forUnexpectedStatus($statusCode, $body);
         }
@@ -53,6 +70,10 @@ final readonly class MainApiAssignmentsClient implements MainApiAssignmentsProvi
 
             $assignments[] = $this->parseAssignment($item);
         }
+
+        $this->diagnostics->log('main_api.assignments.parsed', [
+            'count' => count($assignments),
+        ]);
 
         return $assignments;
     }

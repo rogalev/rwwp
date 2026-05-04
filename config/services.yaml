@@ -17,6 +17,8 @@ parameters:
     parser.http_user_agents: '%env(json:PARSER_HTTP_USER_AGENTS)%'
     parser.html_listing_link_selectors: '%env(json:PARSER_HTML_LISTING_LINK_SELECTORS)%'
     parser.run_status_path: '%env(resolve:PARSER_RUN_STATUS_PATH)%'
+    parser.diagnostic_log_enabled: '%env(bool:PARSER_DIAGNOSTIC_LOG_ENABLED)%'
+    parser.diagnostic_log_path: '%env(resolve:PARSER_DIAGNOSTIC_LOG_PATH)%'
     main_api.base_url: '%env(resolve:MAIN_API_BASE_URL)%'
     main_api.parser_instance_id: '%env(resolve:PARSER_INSTANCE_ID)%'
     main_api.parser_api_key: '%env(resolve:PARSER_API_KEY)%'
@@ -43,6 +45,14 @@ services:
 
     App\State\PendingArticleQueueInterface:
         alias: App\State\SqlitePendingArticleQueue
+
+    App\Diagnostics\DiagnosticLoggerInterface:
+        alias: App\Diagnostics\NdjsonDiagnosticLogger
+
+    App\Diagnostics\NdjsonDiagnosticLogger:
+        arguments:
+            $enabled: '%parser.diagnostic_log_enabled%'
+            $path: '%parser.diagnostic_log_path%'
 
     App\State\SqliteSeenArticleStore:
         arguments:

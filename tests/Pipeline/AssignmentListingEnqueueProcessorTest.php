@@ -15,6 +15,7 @@ use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\State\PendingArticleQueueInterface;
 use App\State\PendingArticle;
 use App\State\SeenArticleStoreInterface;
+use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 
 final class AssignmentListingEnqueueProcessorTest extends TestCase
@@ -133,6 +134,7 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
             $seenStore,
             $queue,
             $failureSender ?? new ListingEnqueueFailureSender(),
+            new NullDiagnosticLogger(),
         );
     }
 

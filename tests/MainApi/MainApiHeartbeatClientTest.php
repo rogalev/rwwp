@@ -6,6 +6,7 @@ namespace App\Tests\MainApi;
 
 use App\MainApi\MainApiHeartbeatClient;
 use App\MainApi\MainApiRequestFailed;
+use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -67,6 +68,7 @@ final class MainApiHeartbeatClientTest extends TestCase
             'https://main.example.com/',
             '0196a111-1111-7111-8111-111111111111',
             'parser-api-key',
+            new NullDiagnosticLogger(),
         );
     }
 }

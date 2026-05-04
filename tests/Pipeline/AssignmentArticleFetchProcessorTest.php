@@ -14,6 +14,7 @@ use App\Pipeline\AssignmentArticleFetchProcessor;
 use App\State\PendingArticle;
 use App\State\PendingArticleQueueInterface;
 use App\State\SeenArticleStoreInterface;
+use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 
 final class AssignmentArticleFetchProcessorTest extends TestCase
@@ -179,6 +180,7 @@ final class AssignmentArticleFetchProcessorTest extends TestCase
             $sender,
             $failureSender ?? new ArticleFetchFailureSender(),
             $seenStore,
+            new NullDiagnosticLogger(),
         );
     }
 

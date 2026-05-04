@@ -123,6 +123,19 @@ make daemon-restart
 make daemon-start interval=60 limit=5
 ```
 
+В dev-режиме можно включить диагностический NDJSON-лог в `.env.local`:
+
+```dotenv
+PARSER_DIAGNOSTIC_LOG_ENABLED=1
+```
+
+Лог показывает pipeline stages и main API request/response без API key и без raw HTML:
+
+```bash
+make diagnostic-tail
+make diagnostic-clear
+```
+
 Показать последний сохраненный статус запуска:
 
 ```bash

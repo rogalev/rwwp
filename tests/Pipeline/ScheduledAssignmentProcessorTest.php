@@ -22,6 +22,7 @@ use App\Schedule\AssignmentScheduleDecision;
 use App\State\PendingArticle;
 use App\State\PendingArticleQueueInterface;
 use App\State\SeenArticleStoreInterface;
+use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 
 final class ScheduledAssignmentProcessorTest extends TestCase
@@ -144,6 +145,7 @@ final class ScheduledAssignmentProcessorTest extends TestCase
                 $seenStore,
                 $queue,
                 $failureSender,
+                new NullDiagnosticLogger(),
             ),
             new AssignmentArticleFetchProcessor(
                 $queue,
@@ -151,6 +153,7 @@ final class ScheduledAssignmentProcessorTest extends TestCase
                 $rawSender,
                 $failureSender,
                 $seenStore,
+                new NullDiagnosticLogger(),
             ),
         );
     }

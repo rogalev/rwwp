@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pipeline;
 
+use App\Diagnostics\DiagnosticLoggerInterface;
 use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
@@ -19,6 +20,7 @@ final readonly class AssignmentListingEnqueueProcessor
         private SeenArticleStoreInterface $seenArticleStore,
         private PendingArticleQueueInterface $pendingArticleQueue,
         private MainApiParserFailureSenderInterface $failureSender,
+        private DiagnosticLoggerInterface $diagnostics,
     ) {
     }
 
@@ -33,6 +35,13 @@ final readonly class AssignmentListingEnqueueProcessor
         $found = 0;
         $alreadySeen = 0;
         $queued = 0;
+        $this->diagnostics->log('listing.start', [
+            'assignmentId' => $assignment->assignmentId,
+            'source' => $assignment->sourceDisplayName,
+            'listingMode' => $assignment->listingMode,
+            'listingUrl' => $assignment->listingUrl,
+            'limit' => $limit,
+        ]);
 
         try {
             foreach ($provider->fetchArticleRefs($source) as $articleRef) {
@@ -48,10 +57,19 @@ final readonly class AssignmentListingEnqueueProcessor
                 }
 
                 if ($this->pendingArticleQueue->enqueue($assignment->assignmentId, $articleRef->externalUrl, $articleRef->sourceCode)) {
+                    $this->diagnostics->log('listing.article_queued', [
+                        'assignmentId' => $assignment->assignmentId,
+                        'externalUrl' => $articleRef->externalUrl,
+                    ]);
                     ++$queued;
                 }
             }
         } catch (\Throwable $exception) {
+            $this->diagnostics->log('listing.error', [
+                'assignmentId' => $assignment->assignmentId,
+                'message' => $exception->getMessage(),
+                'exceptionClass' => $exception::class,
+            ]);
             $this->sendFailure($assignment, $exception);
 
             return new AssignmentListingEnqueueResult(
@@ -63,6 +81,13 @@ final readonly class AssignmentListingEnqueueProcessor
                 lastError: $exception->getMessage(),
             );
         }
+
+        $this->diagnostics->log('listing.done', [
+            'assignmentId' => $assignment->assignmentId,
+            'found' => $found,
+            'alreadySeen' => $alreadySeen,
+            'queued' => $queued,
+        ]);
 
         return new AssignmentListingEnqueueResult(
             found: $found,
