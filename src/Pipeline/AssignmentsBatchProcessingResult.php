@@ -20,6 +20,7 @@ final readonly class AssignmentsBatchProcessingResult
         public array $assignmentResults,
         public array $assignmentErrors,
         public string $lastError,
+        public int $skippedAssignments = 0,
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
         public string $stage = 'listing',

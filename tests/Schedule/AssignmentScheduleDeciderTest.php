@@ -6,7 +6,7 @@ namespace App\Tests\Schedule;
 
 use App\MainApi\ParserAssignment;
 use App\Schedule\AssignmentScheduleDecider;
-use App\State\AssignmentScheduleStoreInterface;
+use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use PHPUnit\Framework\TestCase;
 
 final class AssignmentScheduleDeciderTest extends TestCase
@@ -89,38 +89,5 @@ final class AssignmentScheduleDeciderTest extends TestCase
             requestTimeoutSeconds: 15,
             config: [],
         );
-    }
-}
-
-final class InMemoryAssignmentScheduleStore implements AssignmentScheduleStoreInterface
-{
-    /**
-     * @var array<string, \DateTimeImmutable>
-     */
-    private array $listingCheckedAt = [];
-
-    /**
-     * @var array<string, \DateTimeImmutable>
-     */
-    private array $articleFetchedAt = [];
-
-    public function lastListingCheckedAt(string $assignmentId): ?\DateTimeImmutable
-    {
-        return $this->listingCheckedAt[$assignmentId] ?? null;
-    }
-
-    public function markListingChecked(string $assignmentId, \DateTimeImmutable $checkedAt): void
-    {
-        $this->listingCheckedAt[$assignmentId] = $checkedAt;
-    }
-
-    public function lastArticleFetchedAt(string $assignmentId): ?\DateTimeImmutable
-    {
-        return $this->articleFetchedAt[$assignmentId] ?? null;
-    }
-
-    public function markArticleFetched(string $assignmentId, \DateTimeImmutable $fetchedAt): void
-    {
-        $this->articleFetchedAt[$assignmentId] = $fetchedAt;
     }
 }

@@ -56,6 +56,7 @@ final class StatusShowCommand extends Command
             ['Checked at' => $this->stringValue($status['checkedAt'] ?? null)],
             ['Mode' => $this->stringValue($status['mode'] ?? null)],
             ['Assignments' => $this->stringValue($status['assignments'] ?? null)],
+            ['Skipped' => $this->stringValue($status['skippedAssignments'] ?? null)],
             ['Found' => $this->stringValue($status['found'] ?? null)],
             ['Already seen' => $this->stringValue($status['alreadySeen'] ?? null)],
             ['Sent' => $this->stringValue($status['sent'] ?? null)],

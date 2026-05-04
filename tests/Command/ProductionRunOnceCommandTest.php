@@ -20,10 +20,12 @@ use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
 use App\Pipeline\AssignmentRawArticleProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusReader;
 use App\Status\ParserRunStatusWriter;
+use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -94,6 +96,8 @@ final class ProductionRunOnceCommandTest extends TestCase
         MainApiHeartbeatSenderInterface $heartbeatSender,
         ?string $failingAssignmentId = null,
     ): ProductionRunOnceCommand {
+        $scheduleStore = new InMemoryAssignmentScheduleStore();
+
         return new ProductionRunOnceCommand(
             new AssignmentsBatchProcessor(
                 new ProductionAssignmentsProvider($assignments),
@@ -105,6 +109,8 @@ final class ProductionRunOnceCommandTest extends TestCase
                     new ProductionSeenStore(),
                 ),
                 new ParserRunStatusWriter($statusPath),
+                new AssignmentScheduleDecider($scheduleStore),
+                $scheduleStore,
             ),
             new ParserRunStatusReader($statusPath),
             new ParserRunStatusHeartbeatPayloadFactory(),

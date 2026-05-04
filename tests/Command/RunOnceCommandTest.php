@@ -19,8 +19,10 @@ use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
 use App\Pipeline\AssignmentRawArticleProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusWriter;
+use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -96,6 +98,8 @@ final class RunOnceCommandTest extends TestCase
         string $statusPath,
         ?string $failingAssignmentId = null,
     ): AssignmentsBatchProcessor {
+        $scheduleStore = new InMemoryAssignmentScheduleStore();
+
         return new AssignmentsBatchProcessor(
             new RunOnceAssignmentsProvider($assignments),
             new AssignmentRawArticleProcessor(
@@ -106,6 +110,8 @@ final class RunOnceCommandTest extends TestCase
                 new RunOnceSeenStore(),
             ),
             new ParserRunStatusWriter($statusPath),
+            new AssignmentScheduleDecider($scheduleStore),
+            $scheduleStore,
         );
     }
 

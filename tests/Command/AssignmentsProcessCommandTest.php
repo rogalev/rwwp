@@ -19,8 +19,10 @@ use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
 use App\Pipeline\AssignmentRawArticleProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusWriter;
+use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -134,6 +136,34 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame('Broken source failed.', $status['lastError']);
     }
 
+    public function testSkipsAssignmentWhenScheduleIsNotDue(): void
+    {
+        $statusPath = $this->temporaryStatusPath();
+        $scheduleStore = new InMemoryAssignmentScheduleStore();
+        $assignment = $this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC');
+        $scheduleStore->markListingChecked($assignment->assignmentId, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        $scheduleStore->markArticleFetched($assignment->assignmentId, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        $commandTester = new CommandTester(new AssignmentsProcessCommand(
+            $this->batchProcessor(
+                [$assignment],
+                $this->processor(),
+                $statusPath,
+                $scheduleStore,
+            ),
+        ));
+
+        $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+
+        $status = $this->readStatus($statusPath);
+        self::assertSame(1, $status['assignments']);
+        self::assertSame(1, $status['skippedAssignments']);
+        self::assertSame(0, $status['found']);
+        self::assertSame(0, $status['sent']);
+        self::assertSame('idle', $status['stage']);
+    }
+
     private function processor(?string $failingAssignmentId = null): AssignmentRawArticleProcessor
     {
         return new AssignmentRawArticleProcessor(
@@ -152,11 +182,16 @@ final class AssignmentsProcessCommandTest extends TestCase
         array $assignments,
         AssignmentRawArticleProcessor $processor,
         string $statusPath,
+        ?InMemoryAssignmentScheduleStore $scheduleStore = null,
     ): AssignmentsBatchProcessor {
+        $scheduleStore ??= new InMemoryAssignmentScheduleStore();
+
         return new AssignmentsBatchProcessor(
             new AssignmentsProcessAssignmentsProvider($assignments),
             $processor,
             new ParserRunStatusWriter($statusPath),
+            new AssignmentScheduleDecider($scheduleStore),
+            $scheduleStore,
         );
     }
 

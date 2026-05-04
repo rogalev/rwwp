@@ -42,6 +42,7 @@ final class HeartbeatSendCommandTest extends TestCase
         self::assertSame('', $sender->message);
         self::assertSame([
             'durationSeconds' => 0,
+            'skippedAssignments' => 0,
             'foundLinks' => 5,
             'acceptedRawArticles' => 3,
             'failedArticles' => 1,

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Pipeline;
 
 use App\MainApi\MainApiAssignmentsProviderInterface;
+use App\Schedule\AssignmentScheduleDecider;
+use App\State\AssignmentScheduleStoreInterface;
 use App\Status\ParserRunStatusWriter;
 
 final readonly class AssignmentsBatchProcessor
@@ -13,6 +15,8 @@ final readonly class AssignmentsBatchProcessor
         private MainApiAssignmentsProviderInterface $assignmentsProvider,
         private AssignmentRawArticleProcessor $processor,
         private ParserRunStatusWriter $statusWriter,
+        private AssignmentScheduleDecider $scheduleDecider,
+        private AssignmentScheduleStoreInterface $scheduleStore,
     ) {
     }
 
@@ -41,10 +45,29 @@ final readonly class AssignmentsBatchProcessor
         $stage = 'listing';
         $assignmentResults = [];
         $assignmentErrors = [];
+        $skippedAssignments = 0;
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         foreach ($assignments as $assignment) {
             try {
+                $scheduleDecision = $this->scheduleDecider->decide($assignment, $now);
+                if (!$scheduleDecision->hasDueWork()) {
+                    ++$skippedAssignments;
+                    $assignmentResults[] = new AssignmentBatchProcessingResult(
+                        assignmentId: $assignment->assignmentId,
+                        source: $assignment->sourceDisplayName,
+                        found: 0,
+                        alreadySeen: 0,
+                        sent: 0,
+                        failed: 0,
+                    );
+
+                    continue;
+                }
+
                 $result = $this->processor->process($assignment, $limitPerAssignment);
+                $this->scheduleStore->markListingChecked($assignment->assignmentId, $now);
+                $this->scheduleStore->markArticleFetched($assignment->assignmentId, $now);
                 $found += $result->found;
                 $alreadySeen += $result->alreadySeen;
                 $sent += $result->sent;
@@ -94,9 +117,10 @@ final readonly class AssignmentsBatchProcessor
             assignmentResults: $assignmentResults,
             assignmentErrors: $assignmentErrors,
             lastError: $assignmentErrors[0]['error'] ?? '',
+            skippedAssignments: $skippedAssignments,
             httpStatusCodes: $httpStatusCodes,
             transportErrors: $transportErrors,
-            stage: $stage,
+            stage: count($assignments) === $skippedAssignments && $assignments !== [] ? 'idle' : $stage,
         );
 
         $this->writeStatus($batchResult);
@@ -113,6 +137,7 @@ final readonly class AssignmentsBatchProcessor
             'alreadySeen' => 0,
             'sent' => 0,
             'failed' => 0,
+            'skippedAssignments' => 0,
             'httpStatusCodes' => [],
             'transportErrors' => 0,
             'stage' => 'listing',
@@ -130,6 +155,7 @@ final readonly class AssignmentsBatchProcessor
             'alreadySeen' => $result->alreadySeen,
             'sent' => $result->sent,
             'failed' => $result->failed,
+            'skippedAssignments' => $result->skippedAssignments,
             'httpStatusCodes' => $result->httpStatusCodes,
             'transportErrors' => $result->transportErrors,
             'stage' => $result->stage,
