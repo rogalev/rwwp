@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Pipeline;
+
+final readonly class AssignmentArticleFetchResult
+{
+    /**
+     * @param array<int, int> $httpStatusCodes
+     */
+    public function __construct(
+        public int $sent,
+        public int $failed,
+        public array $httpStatusCodes = [],
+        public int $transportErrors = 0,
+        public string $stage = 'article_fetch',
+    ) {
+    }
+}
