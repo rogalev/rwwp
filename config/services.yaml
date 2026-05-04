@@ -41,11 +41,18 @@ services:
     App\State\AssignmentScheduleStoreInterface:
         alias: App\State\SqliteAssignmentScheduleStore
 
+    App\State\PendingArticleQueueInterface:
+        alias: App\State\SqlitePendingArticleQueue
+
     App\State\SqliteSeenArticleStore:
         arguments:
             $dsn: '%parser.state_dsn%'
 
     App\State\SqliteAssignmentScheduleStore:
+        arguments:
+            $dsn: '%parser.state_dsn%'
+
+    App\State\SqlitePendingArticleQueue:
         arguments:
             $dsn: '%parser.state_dsn%'
 
