@@ -1,0 +1,290 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Pipeline;
+
+use App\Listing\ArticleListingProviderInterface;
+use App\Listing\ArticleListingProviderRegistry;
+use App\Listing\ExternalArticleRef;
+use App\Listing\ListingSource;
+use App\Listing\ListingSourceType;
+use App\MainApi\MainApiParserFailureSenderInterface;
+use App\MainApi\ParserAssignment;
+use App\Pipeline\AssignmentListingEnqueueProcessor;
+use App\State\PendingArticleQueueInterface;
+use App\State\PendingArticle;
+use App\State\SeenArticleStoreInterface;
+use PHPUnit\Framework\TestCase;
+
+final class AssignmentListingEnqueueProcessorTest extends TestCase
+{
+    public function testEnqueuesNewArticleRefs(): void
+    {
+        $seenStore = new ListingEnqueueSeenStore();
+        $queue = new ListingEnqueueQueue();
+        $processor = $this->processor(
+            articleRefs: [
+                $this->articleRef('https://example.com/news/1'),
+                $this->articleRef('https://example.com/news/2'),
+            ],
+            seenStore: $seenStore,
+            queue: $queue,
+        );
+
+        $result = $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame(2, $result->found);
+        self::assertSame(0, $result->alreadySeen);
+        self::assertSame(2, $result->queued);
+        self::assertSame(0, $result->failed);
+        self::assertSame([
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'externalUrl' => 'https://example.com/news/1',
+                'sourceCode' => '0196a111-1111-7111-8111-111111111111',
+            ],
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'externalUrl' => 'https://example.com/news/2',
+                'sourceCode' => '0196a111-1111-7111-8111-111111111111',
+            ],
+        ], $queue->enqueued);
+    }
+
+    public function testSkipsAlreadySeenRefs(): void
+    {
+        $queue = new ListingEnqueueQueue();
+        $processor = $this->processor(
+            articleRefs: [$this->articleRef('https://example.com/news/1')],
+            seenStore: new ListingEnqueueSeenStore(seenUrls: ['https://example.com/news/1']),
+            queue: $queue,
+        );
+
+        $result = $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame(1, $result->found);
+        self::assertSame(1, $result->alreadySeen);
+        self::assertSame(0, $result->queued);
+        self::assertSame([], $queue->enqueued);
+    }
+
+    public function testRespectsQueueLimit(): void
+    {
+        $queue = new ListingEnqueueQueue();
+        $processor = $this->processor(
+            articleRefs: [
+                $this->articleRef('https://example.com/news/1'),
+                $this->articleRef('https://example.com/news/2'),
+            ],
+            seenStore: new ListingEnqueueSeenStore(),
+            queue: $queue,
+        );
+
+        $result = $processor->process($this->assignment(), limit: 1);
+
+        self::assertSame(2, $result->found);
+        self::assertSame(1, $result->queued);
+        self::assertCount(1, $queue->enqueued);
+    }
+
+    public function testReportsListingFailure(): void
+    {
+        $failureSender = new ListingEnqueueFailureSender();
+        $processor = $this->processor(
+            articleRefs: [],
+            seenStore: new ListingEnqueueSeenStore(),
+            queue: new ListingEnqueueQueue(),
+            failureSender: $failureSender,
+            listingException: new \RuntimeException('Listing failed.'),
+        );
+
+        $result = $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame(0, $result->found);
+        self::assertSame(0, $result->queued);
+        self::assertSame(1, $result->failed);
+        self::assertSame(1, $result->transportErrors);
+        self::assertSame([
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'stage' => 'listing',
+                'message' => 'Listing failed.',
+                'context' => [
+                    'listingUrl' => 'https://feeds.bbci.co.uk/news/world/rss.xml',
+                    'exceptionClass' => \RuntimeException::class,
+                ],
+            ],
+        ], $failureSender->failuresWithoutOccurredAt());
+    }
+
+    /**
+     * @param list<ExternalArticleRef> $articleRefs
+     */
+    private function processor(
+        array $articleRefs,
+        ListingEnqueueSeenStore $seenStore,
+        ListingEnqueueQueue $queue,
+        ?ListingEnqueueFailureSender $failureSender = null,
+        ?\Throwable $listingException = null,
+    ): AssignmentListingEnqueueProcessor {
+        return new AssignmentListingEnqueueProcessor(
+            new ArticleListingProviderRegistry([new ListingEnqueueProvider($articleRefs, $listingException)]),
+            $seenStore,
+            $queue,
+            $failureSender ?? new ListingEnqueueFailureSender(),
+        );
+    }
+
+    private function assignment(): ParserAssignment
+    {
+        return new ParserAssignment(
+            assignmentId: '0196a222-2222-7222-8222-222222222222',
+            sourceId: '0196a111-1111-7111-8111-111111111111',
+            sourceDisplayName: 'BBC',
+            listingMode: 'rss',
+            listingUrl: 'https://feeds.bbci.co.uk/news/world/rss.xml',
+            articleMode: 'html',
+            listingCheckIntervalSeconds: 300,
+            articleFetchIntervalSeconds: 10,
+            requestTimeoutSeconds: 15,
+            config: [],
+        );
+    }
+
+    private function articleRef(string $externalUrl): ExternalArticleRef
+    {
+        return new ExternalArticleRef(
+            externalUrl: $externalUrl,
+            sourceCode: '0196a111-1111-7111-8111-111111111111',
+            categoryCode: '0196a222-2222-7222-8222-222222222222',
+            listingSourceType: ListingSourceType::RssFeed,
+        );
+    }
+}
+
+final readonly class ListingEnqueueProvider implements ArticleListingProviderInterface
+{
+    /**
+     * @param list<ExternalArticleRef> $articleRefs
+     */
+    public function __construct(
+        private array $articleRefs,
+        private ?\Throwable $exception = null,
+    ) {
+    }
+
+    public function supports(ListingSource $source): bool
+    {
+        return true;
+    }
+
+    public function fetchArticleRefs(ListingSource $source): iterable
+    {
+        if ($this->exception !== null) {
+            throw $this->exception;
+        }
+
+        return $this->articleRefs;
+    }
+}
+
+final readonly class ListingEnqueueSeenStore implements SeenArticleStoreInterface
+{
+    /**
+     * @param list<string> $seenUrls
+     */
+    public function __construct(
+        private array $seenUrls = [],
+    ) {
+    }
+
+    public function has(string $externalUrl): bool
+    {
+        return \in_array($externalUrl, $this->seenUrls, true);
+    }
+
+    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    {
+    }
+
+    public function markParsed(string $externalUrl): void
+    {
+    }
+
+    public function markFailed(string $externalUrl, string $error): void
+    {
+    }
+}
+
+final class ListingEnqueueQueue implements PendingArticleQueueInterface
+{
+    /**
+     * @var list<array{assignmentId: string, externalUrl: string, sourceCode: string}>
+     */
+    public array $enqueued = [];
+
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    {
+        $this->enqueued[] = [
+            'assignmentId' => $assignmentId,
+            'externalUrl' => $externalUrl,
+            'sourceCode' => $sourceCode,
+        ];
+
+        return true;
+    }
+
+    public function takePending(string $assignmentId, int $limit): array
+    {
+        return [];
+    }
+
+    public function markSent(string $assignmentId, string $externalUrl): void
+    {
+    }
+
+    public function markFailed(string $assignmentId, string $externalUrl, string $error): void
+    {
+    }
+}
+
+final class ListingEnqueueFailureSender implements MainApiParserFailureSenderInterface
+{
+    /**
+     * @var list<array{assignmentId: string, stage: string, message: string, context: array<string, mixed>, occurredAt: string}>
+     */
+    public array $failures = [];
+
+    public function send(
+        string $assignmentId,
+        string $stage,
+        string $message,
+        array $context,
+        \DateTimeImmutable $occurredAt,
+    ): void {
+        $this->failures[] = [
+            'assignmentId' => $assignmentId,
+            'stage' => $stage,
+            'message' => $message,
+            'context' => $context,
+            'occurredAt' => $occurredAt->format(\DateTimeInterface::ATOM),
+        ];
+    }
+
+    /**
+     * @return list<array{assignmentId: string, stage: string, message: string, context: array<string, mixed>}>
+     */
+    public function failuresWithoutOccurredAt(): array
+    {
+        return array_map(
+            static fn (array $failure): array => [
+                'assignmentId' => $failure['assignmentId'],
+                'stage' => $failure['stage'],
+                'message' => $failure['message'],
+                'context' => $failure['context'],
+            ],
+            $this->failures,
+        );
+    }
+}
