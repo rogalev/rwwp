@@ -17,12 +17,15 @@ use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
-use App\Pipeline\AssignmentRawArticleProcessor;
+use App\Pipeline\AssignmentArticleFetchProcessor;
+use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Pipeline\ScheduledAssignmentProcessor;
 use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusWriter;
 use App\Tests\Support\InMemoryAssignmentScheduleStore;
+use App\Tests\Support\InMemoryPendingArticleQueue;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -58,6 +61,7 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(2, $status['assignments']);
         self::assertSame(2, $status['found']);
         self::assertSame(0, $status['alreadySeen']);
+        self::assertSame(2, $status['queued']);
         self::assertSame(2, $status['sent']);
         self::assertSame(0, $status['failed']);
         self::assertSame([200 => 2], $status['httpStatusCodes']);
@@ -81,6 +85,7 @@ final class AssignmentsProcessCommandTest extends TestCase
         $status = $this->readStatus($statusPath);
         self::assertSame(0, $status['assignments']);
         self::assertSame(0, $status['found']);
+        self::assertSame(0, $status['queued']);
         self::assertSame(0, $status['sent']);
         self::assertSame([], $status['httpStatusCodes']);
         self::assertSame(0, $status['transportErrors']);
@@ -123,6 +128,7 @@ final class AssignmentsProcessCommandTest extends TestCase
         $status = $this->readStatus($statusPath);
         self::assertSame(2, $status['assignments']);
         self::assertSame(1, $status['found']);
+        self::assertSame(1, $status['queued']);
         self::assertSame(1, $status['sent']);
         self::assertSame([200 => 1], $status['httpStatusCodes']);
         self::assertSame(1, $status['transportErrors']);
@@ -160,18 +166,31 @@ final class AssignmentsProcessCommandTest extends TestCase
         self::assertSame(1, $status['assignments']);
         self::assertSame(1, $status['skippedAssignments']);
         self::assertSame(0, $status['found']);
+        self::assertSame(0, $status['queued']);
         self::assertSame(0, $status['sent']);
         self::assertSame('idle', $status['stage']);
     }
 
-    private function processor(?string $failingAssignmentId = null): AssignmentRawArticleProcessor
+    private function processor(?string $failingAssignmentId = null): ScheduledAssignmentProcessor
     {
-        return new AssignmentRawArticleProcessor(
-            new ArticleListingProviderRegistry([new AssignmentsProcessListingProvider($failingAssignmentId)]),
-            new AssignmentsProcessDocumentFetcher(),
-            new AssignmentsProcessRawArticleSender(),
-            new AssignmentsProcessFailureSender(),
-            new AssignmentsProcessSeenStore(),
+        $queue = new InMemoryPendingArticleQueue();
+        $failureSender = new AssignmentsProcessFailureSender();
+        $seenStore = new AssignmentsProcessSeenStore();
+
+        return new ScheduledAssignmentProcessor(
+            new AssignmentListingEnqueueProcessor(
+                new ArticleListingProviderRegistry([new AssignmentsProcessListingProvider($failingAssignmentId)]),
+                $seenStore,
+                $queue,
+                $failureSender,
+            ),
+            new AssignmentArticleFetchProcessor(
+                $queue,
+                new AssignmentsProcessDocumentFetcher(),
+                new AssignmentsProcessRawArticleSender(),
+                $failureSender,
+                $seenStore,
+            ),
         );
     }
 
@@ -180,7 +199,7 @@ final class AssignmentsProcessCommandTest extends TestCase
      */
     private function batchProcessor(
         array $assignments,
-        AssignmentRawArticleProcessor $processor,
+        ScheduledAssignmentProcessor $processor,
         string $statusPath,
         ?InMemoryAssignmentScheduleStore $scheduleStore = null,
     ): AssignmentsBatchProcessor {

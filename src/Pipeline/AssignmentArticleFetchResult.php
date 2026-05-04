@@ -15,6 +15,7 @@ final readonly class AssignmentArticleFetchResult
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
         public string $stage = 'article_fetch',
+        public string $lastError = '',
     ) {
     }
 }

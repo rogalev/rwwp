@@ -15,6 +15,7 @@ final readonly class AssignmentsBatchProcessingResult
         public int $assignments,
         public int $found,
         public int $alreadySeen,
+        public int $queued,
         public int $sent,
         public int $failed,
         public array $assignmentResults,

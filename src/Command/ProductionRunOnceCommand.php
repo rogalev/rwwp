@@ -89,6 +89,7 @@ final class ProductionRunOnceCommand extends Command
             ['Assignments' => (string) $result->assignments],
             ['Found' => (string) $result->found],
             ['Already seen' => (string) $result->alreadySeen],
+            ['Queued' => (string) $result->queued],
             ['Sent' => (string) $result->sent],
             ['Failed' => (string) $result->failed],
             ['Last error' => $result->lastError],
@@ -114,10 +115,10 @@ final class ProductionRunOnceCommand extends Command
             items: array_map(
                 fn ($assignmentResult): AssignmentRunStats => new AssignmentRunStats(
                     assignmentId: $assignmentResult->assignmentId,
-                    stage: $assignmentResult->skipped ? 'idle' : $result->stage,
+                    stage: $assignmentResult->stage,
                     status: $this->assignmentRunStatus($assignmentResult->error),
                     found: $assignmentResult->found,
-                    queued: 0,
+                    queued: $assignmentResult->queued,
                     alreadySeen: $assignmentResult->alreadySeen,
                     sent: $assignmentResult->sent,
                     failed: $assignmentResult->failed,

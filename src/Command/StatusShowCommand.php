@@ -59,6 +59,7 @@ final class StatusShowCommand extends Command
             ['Skipped' => $this->stringValue($status['skippedAssignments'] ?? null)],
             ['Found' => $this->stringValue($status['found'] ?? null)],
             ['Already seen' => $this->stringValue($status['alreadySeen'] ?? null)],
+            ['Queued' => $this->stringValue($status['queued'] ?? null)],
             ['Sent' => $this->stringValue($status['sent'] ?? null)],
             ['Failed' => $this->stringValue($status['failed'] ?? null)],
             ['Stage' => $this->stringValue($status['stage'] ?? null)],

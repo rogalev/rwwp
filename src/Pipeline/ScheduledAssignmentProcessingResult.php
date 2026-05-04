@@ -18,6 +18,7 @@ final readonly class ScheduledAssignmentProcessingResult
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
         public string $stage = 'idle',
+        public string $lastError = '',
     ) {
     }
 }

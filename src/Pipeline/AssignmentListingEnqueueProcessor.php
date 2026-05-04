@@ -60,6 +60,7 @@ final readonly class AssignmentListingEnqueueProcessor
                 queued: $queued,
                 failed: 1,
                 transportErrors: 1,
+                lastError: $exception->getMessage(),
             );
         }
 

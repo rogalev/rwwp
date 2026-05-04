@@ -20,14 +20,17 @@ use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
-use App\Pipeline\AssignmentRawArticleProcessor;
+use App\Pipeline\AssignmentArticleFetchProcessor;
+use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Pipeline\ScheduledAssignmentProcessor;
 use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusReader;
 use App\Status\ParserRunStatusWriter;
 use App\Tests\Support\InMemoryAssignmentScheduleStore;
+use App\Tests\Support\InMemoryPendingArticleQueue;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -52,6 +55,7 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertSame('ok', $heartbeatSender->status);
         self::assertSame('', $heartbeatSender->message);
         self::assertSame(1, $heartbeatSender->metrics['foundLinks']);
+        self::assertSame(1, $heartbeatSender->metrics['queuedArticles']);
         self::assertSame(1, $heartbeatSender->metrics['acceptedRawArticles']);
         self::assertSame(['200' => 1], $heartbeatSender->metrics['httpStatusCodes']);
         self::assertNotNull($assignmentRunsSender->checkedAt);
@@ -60,6 +64,7 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertSame('raw_article_send', $assignmentRunsSender->items[0]->stage);
         self::assertSame('ok', $assignmentRunsSender->items[0]->status);
         self::assertSame(1, $assignmentRunsSender->items[0]->found);
+        self::assertSame(1, $assignmentRunsSender->items[0]->queued);
         self::assertSame(1, $assignmentRunsSender->items[0]->sent);
         self::assertFalse($assignmentRunsSender->items[0]->skipped);
         self::assertSame([200 => 1], $assignmentRunsSender->items[0]->httpStatusCodes);
@@ -130,16 +135,27 @@ final class ProductionRunOnceCommandTest extends TestCase
         ?string $failingAssignmentId = null,
     ): ProductionRunOnceCommand {
         $scheduleStore = new InMemoryAssignmentScheduleStore();
+        $queue = new InMemoryPendingArticleQueue();
+        $failureSender = new ProductionFailureSender();
+        $seenStore = new ProductionSeenStore();
 
         return new ProductionRunOnceCommand(
             new AssignmentsBatchProcessor(
                 new ProductionAssignmentsProvider($assignments),
-                new AssignmentRawArticleProcessor(
-                    new ArticleListingProviderRegistry([new ProductionListingProvider($failingAssignmentId)]),
-                    new ProductionDocumentFetcher(),
-                    new ProductionRawArticleSender(),
-                    new ProductionFailureSender(),
-                    new ProductionSeenStore(),
+                new ScheduledAssignmentProcessor(
+                    new AssignmentListingEnqueueProcessor(
+                        new ArticleListingProviderRegistry([new ProductionListingProvider($failingAssignmentId)]),
+                        $seenStore,
+                        $queue,
+                        $failureSender,
+                    ),
+                    new AssignmentArticleFetchProcessor(
+                        $queue,
+                        new ProductionDocumentFetcher(),
+                        new ProductionRawArticleSender(),
+                        $failureSender,
+                        $seenStore,
+                    ),
                 ),
                 new ParserRunStatusWriter($statusPath),
                 new AssignmentScheduleDecider($scheduleStore),

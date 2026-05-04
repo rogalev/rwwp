@@ -14,10 +14,12 @@ final readonly class AssignmentBatchProcessingResult
         public string $source,
         public int $found,
         public int $alreadySeen,
+        public int $queued,
         public int $sent,
         public int $failed,
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
+        public string $stage = 'idle',
         public string $error = '',
         public bool $skipped = false,
     ) {

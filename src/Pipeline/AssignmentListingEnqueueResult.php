@@ -13,6 +13,7 @@ final readonly class AssignmentListingEnqueueResult
         public int $failed,
         public int $transportErrors = 0,
         public string $stage = 'listing',
+        public string $lastError = '',
     ) {
     }
 }

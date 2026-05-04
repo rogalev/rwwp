@@ -39,6 +39,7 @@ final readonly class AssignmentArticleFetchProcessor
         $transportErrors = 0;
         $httpStatusCodes = [];
         $lastStage = 'article_fetch';
+        $lastError = '';
         $httpHeaders = $this->httpHeaders($assignment);
 
         foreach ($this->pendingArticleQueue->takePending($assignment->assignmentId, $limit) as $pendingArticle) {
@@ -64,6 +65,7 @@ final readonly class AssignmentArticleFetchProcessor
                 $this->pendingArticleQueue->markFailed($assignment->assignmentId, $pendingArticle->externalUrl, $exception->getMessage());
                 $this->seenArticleStore->markFailed($pendingArticle->externalUrl, $exception->getMessage());
                 $this->sendFailure($assignment, $stage, $pendingArticle->externalUrl, $exception);
+                $lastError = $exception->getMessage();
                 ++$failed;
                 ++$transportErrors;
             }
@@ -77,6 +79,7 @@ final readonly class AssignmentArticleFetchProcessor
             httpStatusCodes: $httpStatusCodes,
             transportErrors: $transportErrors,
             stage: $lastStage,
+            lastError: $lastError,
         );
     }
 

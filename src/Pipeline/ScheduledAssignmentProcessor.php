@@ -44,6 +44,7 @@ final readonly class ScheduledAssignmentProcessor
             httpStatusCodes: $articleFetchResult?->httpStatusCodes ?? [],
             transportErrors: ($listingResult?->transportErrors ?? 0) + ($articleFetchResult?->transportErrors ?? 0),
             stage: $this->stage($scheduleDecision, $listingResult, $articleFetchResult),
+            lastError: $listingResult?->lastError ?: ($articleFetchResult?->lastError ?? ''),
         );
     }
 

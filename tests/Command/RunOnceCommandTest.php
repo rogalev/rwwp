@@ -17,12 +17,15 @@ use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
 use App\MainApi\ParserAssignment;
 use App\MainApi\SendRawArticleResult;
-use App\Pipeline\AssignmentRawArticleProcessor;
+use App\Pipeline\AssignmentArticleFetchProcessor;
+use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Pipeline\ScheduledAssignmentProcessor;
 use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
 use App\Status\ParserRunStatusWriter;
 use App\Tests\Support\InMemoryAssignmentScheduleStore;
+use App\Tests\Support\InMemoryPendingArticleQueue;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -48,6 +51,7 @@ final class RunOnceCommandTest extends TestCase
         $status = $this->readStatus($statusPath);
         self::assertSame('main_assignments_batch', $status['mode']);
         self::assertSame(1, $status['assignments']);
+        self::assertSame(1, $status['queued']);
         self::assertSame(1, $status['sent']);
         self::assertSame([200 => 1], $status['httpStatusCodes']);
         self::assertSame(0, $status['transportErrors']);
@@ -99,15 +103,26 @@ final class RunOnceCommandTest extends TestCase
         ?string $failingAssignmentId = null,
     ): AssignmentsBatchProcessor {
         $scheduleStore = new InMemoryAssignmentScheduleStore();
+        $queue = new InMemoryPendingArticleQueue();
+        $failureSender = new RunOnceFailureSender();
+        $seenStore = new RunOnceSeenStore();
 
         return new AssignmentsBatchProcessor(
             new RunOnceAssignmentsProvider($assignments),
-            new AssignmentRawArticleProcessor(
-                new ArticleListingProviderRegistry([new RunOnceListingProvider($failingAssignmentId)]),
-                new RunOnceDocumentFetcher(),
-                new RunOnceRawArticleSender(),
-                new RunOnceFailureSender(),
-                new RunOnceSeenStore(),
+            new ScheduledAssignmentProcessor(
+                new AssignmentListingEnqueueProcessor(
+                    new ArticleListingProviderRegistry([new RunOnceListingProvider($failingAssignmentId)]),
+                    $seenStore,
+                    $queue,
+                    $failureSender,
+                ),
+                new AssignmentArticleFetchProcessor(
+                    $queue,
+                    new RunOnceDocumentFetcher(),
+                    new RunOnceRawArticleSender(),
+                    $failureSender,
+                    $seenStore,
+                ),
             ),
             new ParserRunStatusWriter($statusPath),
             new AssignmentScheduleDecider($scheduleStore),
