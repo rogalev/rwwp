@@ -19,6 +19,7 @@ final readonly class AssignmentBatchProcessingResult
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
         public string $error = '',
+        public bool $skipped = false,
     ) {
     }
 }

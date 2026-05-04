@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\MainApi\MainApiHeartbeatSenderInterface;
+use App\MainApi\AssignmentRunStats;
+use App\MainApi\MainApiAssignmentRunsSenderInterface;
 use App\Pipeline\AssignmentsBatchProcessingResult;
 use App\Pipeline\AssignmentsBatchProcessor;
 use App\Status\ParserRunStatusHeartbeatPayloadFactory;
@@ -27,6 +29,7 @@ final class ProductionRunOnceCommand extends Command
         private readonly ParserRunStatusReader $statusReader,
         private readonly ParserRunStatusHeartbeatPayloadFactory $payloadFactory,
         private readonly MainApiHeartbeatSenderInterface $heartbeatSender,
+        private readonly MainApiAssignmentRunsSenderInterface $assignmentRunsSender,
     ) {
         parent::__construct();
     }
@@ -46,11 +49,15 @@ final class ProductionRunOnceCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $result = null;
+        $hasProductionError = false;
 
         try {
             $result = $this->batchProcessor->process($this->readLimit($input));
             $this->showResult($io, $result);
+            $this->sendAssignmentRuns($result);
+            $io->success('Статистика назначений отправлена в main.');
         } catch (\Throwable $exception) {
+            $hasProductionError = true;
             $io->error($exception->getMessage());
         }
 
@@ -63,7 +70,7 @@ final class ProductionRunOnceCommand extends Command
             return Command::FAILURE;
         }
 
-        return $result?->hasErrors() ? Command::FAILURE : Command::SUCCESS;
+        return $hasProductionError || $result?->hasErrors() ? Command::FAILURE : Command::SUCCESS;
     }
 
     private function readLimit(InputInterface $input): int
@@ -98,5 +105,35 @@ final class ProductionRunOnceCommand extends Command
             message: $payload->message,
             metrics: $payload->metrics,
         );
+    }
+
+    private function sendAssignmentRuns(AssignmentsBatchProcessingResult $result): void
+    {
+        $this->assignmentRunsSender->send(
+            checkedAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            items: array_map(
+                fn ($assignmentResult): AssignmentRunStats => new AssignmentRunStats(
+                    assignmentId: $assignmentResult->assignmentId,
+                    stage: $assignmentResult->skipped ? 'idle' : $result->stage,
+                    status: $this->assignmentRunStatus($assignmentResult->error),
+                    found: $assignmentResult->found,
+                    queued: 0,
+                    alreadySeen: $assignmentResult->alreadySeen,
+                    sent: $assignmentResult->sent,
+                    failed: $assignmentResult->failed,
+                    skipped: $assignmentResult->skipped,
+                    httpStatusCodes: $assignmentResult->httpStatusCodes,
+                    transportErrors: $assignmentResult->transportErrors,
+                    durationMs: 0,
+                    lastError: $assignmentResult->error,
+                ),
+                $result->assignmentResults,
+            ),
+        );
+    }
+
+    private function assignmentRunStatus(string $error): string
+    {
+        return $error === '' ? 'ok' : 'error';
     }
 }

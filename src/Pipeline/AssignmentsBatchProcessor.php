@@ -60,6 +60,7 @@ final readonly class AssignmentsBatchProcessor
                         alreadySeen: 0,
                         sent: 0,
                         failed: 0,
+                        skipped: true,
                     );
 
                     continue;

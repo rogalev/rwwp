@@ -13,6 +13,8 @@ use App\Listing\ExternalArticleRef;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiAssignmentsProviderInterface;
+use App\MainApi\AssignmentRunStats;
+use App\MainApi\MainApiAssignmentRunsSenderInterface;
 use App\MainApi\MainApiHeartbeatSenderInterface;
 use App\MainApi\MainApiParserFailureSenderInterface;
 use App\MainApi\MainApiRawArticleSenderInterface;
@@ -36,10 +38,12 @@ final class ProductionRunOnceCommandTest extends TestCase
     {
         $statusPath = $this->temporaryStatusPath();
         $heartbeatSender = new ProductionRecordingHeartbeatSender();
+        $assignmentRunsSender = new ProductionRecordingAssignmentRunsSender();
         $commandTester = new CommandTester($this->command(
             assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
             statusPath: $statusPath,
             heartbeatSender: $heartbeatSender,
+            assignmentRunsSender: $assignmentRunsSender,
         ));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
@@ -50,6 +54,16 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertSame(1, $heartbeatSender->metrics['foundLinks']);
         self::assertSame(1, $heartbeatSender->metrics['acceptedRawArticles']);
         self::assertSame(['200' => 1], $heartbeatSender->metrics['httpStatusCodes']);
+        self::assertNotNull($assignmentRunsSender->checkedAt);
+        self::assertCount(1, $assignmentRunsSender->items);
+        self::assertSame('0196a222-2222-7222-8222-222222222222', $assignmentRunsSender->items[0]->assignmentId);
+        self::assertSame('raw_article_send', $assignmentRunsSender->items[0]->stage);
+        self::assertSame('ok', $assignmentRunsSender->items[0]->status);
+        self::assertSame(1, $assignmentRunsSender->items[0]->found);
+        self::assertSame(1, $assignmentRunsSender->items[0]->sent);
+        self::assertFalse($assignmentRunsSender->items[0]->skipped);
+        self::assertSame([200 => 1], $assignmentRunsSender->items[0]->httpStatusCodes);
+        self::assertStringContainsString('Статистика назначений отправлена в main.', $commandTester->getDisplay());
         self::assertStringContainsString('Heartbeat отправлен в main.', $commandTester->getDisplay());
     }
 
@@ -61,6 +75,7 @@ final class ProductionRunOnceCommandTest extends TestCase
             assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
             statusPath: $statusPath,
             heartbeatSender: $heartbeatSender,
+            assignmentRunsSender: new ProductionRecordingAssignmentRunsSender(),
             failingAssignmentId: '0196a222-2222-7222-8222-222222222222',
         ));
 
@@ -79,12 +94,29 @@ final class ProductionRunOnceCommandTest extends TestCase
             assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
             statusPath: $statusPath,
             heartbeatSender: new ProductionFailingHeartbeatSender(new \RuntimeException('Heartbeat rejected.')),
+            assignmentRunsSender: new ProductionRecordingAssignmentRunsSender(),
         ));
 
         $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
 
         self::assertSame(Command::FAILURE, $exitCode);
         self::assertStringContainsString('Heartbeat rejected.', $commandTester->getDisplay());
+    }
+
+    public function testReturnsFailureWhenAssignmentRunsSendingFails(): void
+    {
+        $statusPath = $this->temporaryStatusPath();
+        $commandTester = new CommandTester($this->command(
+            assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
+            statusPath: $statusPath,
+            heartbeatSender: new ProductionRecordingHeartbeatSender(),
+            assignmentRunsSender: new ProductionFailingAssignmentRunsSender(new \RuntimeException('Assignment stats rejected.')),
+        ));
+
+        $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertStringContainsString('Assignment stats rejected.', $commandTester->getDisplay());
     }
 
     /**
@@ -94,6 +126,7 @@ final class ProductionRunOnceCommandTest extends TestCase
         array $assignments,
         string $statusPath,
         MainApiHeartbeatSenderInterface $heartbeatSender,
+        MainApiAssignmentRunsSenderInterface $assignmentRunsSender,
         ?string $failingAssignmentId = null,
     ): ProductionRunOnceCommand {
         $scheduleStore = new InMemoryAssignmentScheduleStore();
@@ -115,6 +148,7 @@ final class ProductionRunOnceCommandTest extends TestCase
             new ParserRunStatusReader($statusPath),
             new ParserRunStatusHeartbeatPayloadFactory(),
             $heartbeatSender,
+            $assignmentRunsSender,
         );
     }
 
@@ -268,6 +302,35 @@ final class ProductionRecordingHeartbeatSender implements MainApiHeartbeatSender
         $this->status = $status;
         $this->message = $message;
         $this->metrics = $metrics;
+    }
+}
+
+final class ProductionRecordingAssignmentRunsSender implements MainApiAssignmentRunsSenderInterface
+{
+    public ?\DateTimeImmutable $checkedAt = null;
+
+    /**
+     * @var list<AssignmentRunStats>
+     */
+    public array $items = [];
+
+    public function send(\DateTimeImmutable $checkedAt, array $items): void
+    {
+        $this->checkedAt = $checkedAt;
+        $this->items = $items;
+    }
+}
+
+final readonly class ProductionFailingAssignmentRunsSender implements MainApiAssignmentRunsSenderInterface
+{
+    public function __construct(
+        private \Throwable $exception,
+    ) {
+    }
+
+    public function send(\DateTimeImmutable $checkedAt, array $items): void
+    {
+        throw $this->exception;
     }
 }
 
