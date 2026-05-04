@@ -38,7 +38,14 @@ services:
     App\State\SeenArticleStoreInterface:
         alias: App\State\SqliteSeenArticleStore
 
+    App\State\AssignmentScheduleStoreInterface:
+        alias: App\State\SqliteAssignmentScheduleStore
+
     App\State\SqliteSeenArticleStore:
+        arguments:
+            $dsn: '%parser.state_dsn%'
+
+    App\State\SqliteAssignmentScheduleStore:
         arguments:
             $dsn: '%parser.state_dsn%'
 
