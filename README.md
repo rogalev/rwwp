@@ -85,6 +85,12 @@ make console cmd="parser:main:assignments"
 make console cmd="parser:main:raw-article:send 0196a222-2222-7222-8222-222222222222 https://example.com/news/1 /app/var/tmp/article.html --status=200"
 ```
 
+Обработать одно назначение через актуальный scheduled pipeline:
+
+```bash
+make console cmd="parser:assignment:run-once 0196a222-2222-7222-8222-222222222222 --limit=1"
+```
+
 Обработать все назначения вручную:
 
 ```bash
@@ -107,9 +113,10 @@ make status
 
 1. Проверить назначения: `parser:main:assignments`.
 2. Проверить ручную отправку HTML: `parser:main:raw-article:send`.
-3. Проверить обработку назначений через актуальный pipeline: `parser:assignments:process`.
-4. Проверить полный один production-цикл: `parser:run-once`.
-5. Проверить статус: `make status`.
+3. Проверить одно назначение через актуальный pipeline: `parser:assignment:run-once`.
+4. Проверить обработку всех назначений через актуальный pipeline: `parser:assignments:process`.
+5. Проверить полный один production-цикл: `parser:run-once`.
+6. Проверить статус: `make status`.
 
 ## Добавление Или Ремонт Источника
 
