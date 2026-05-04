@@ -103,6 +103,26 @@ make console cmd="parser:assignments:process --limit-per-assignment=1"
 make console cmd="parser:run-once --limit-per-assignment=1"
 ```
 
+Запустить локальный Docker-демон, который повторяет production-цикл каждые 30 секунд:
+
+```bash
+make daemon-start
+```
+
+Управление локальным демоном:
+
+```bash
+make daemon-logs
+make daemon-stop
+make daemon-restart
+```
+
+Интервал и лимит можно переопределить:
+
+```bash
+make daemon-start interval=60 limit=5
+```
+
 Показать последний сохраненный статус запуска:
 
 ```bash
