@@ -177,10 +177,10 @@ PARSER_HTML_LISTING_LINK_SELECTORS='{"source.category.html_section": ".article-l
 make console cmd="parser:listing:fetch html_section source category https://example.com/news"
 ```
 
-2. Если listing работает, проверить парсинг самой статьи.
+2. Если listing работает, проверить получение HTML статьи и отправку raw article в main.
 
 ```bash
-make console cmd="parser:article:parse bbc world https://www.bbc.com/news/articles/example"
+make console cmd="parser:main:raw-article:send assignment-id https://www.bbc.com/news/articles/example /app/var/tmp/article.html --status=200"
 ```
 
 3. Перед изменением parser-кода обновить или добавить fixtures.
@@ -192,7 +192,7 @@ make console cmd="parser:article:parse bbc world https://www.bbc.com/news/articl
 4. Изменить минимально возможный selector или parser rule.
 
 - HTML listing selectors настраиваются через `PARSER_HTML_LISTING_LINK_SELECTORS`.
-- BBC article selectors собраны в начале `src/Article/BbcArticleParser.php`.
+- Правила извлечения статьи живут на стороне main в extraction profiles; parser-agent отправляет raw HTML.
 - Если у одного источника разные шаблоны страниц, сначала добавь отдельный fixture для каждого шаблона, а потом меняй логику.
 
 5. После каждого ремонта запустить тесты.
