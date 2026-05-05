@@ -8,8 +8,10 @@ use App\Http\DocumentFetcherInterface;
 use App\Url\UrlNormalizerInterface;
 use Symfony\Component\DomCrawler\Crawler;
 
-final readonly class HtmlArticleListingProvider implements ArticleListingProviderInterface
+final class HtmlArticleListingProvider implements ArticleListingProviderInterface, HtmlListingSelectorStatsProviderInterface
 {
+    private ?HtmlListingSelectorStats $lastSelectorStats = null;
+
     public function __construct(
         private DocumentFetcherInterface $documentFetcher,
         private UrlNormalizerInterface $urlNormalizer,
@@ -30,9 +32,12 @@ final readonly class HtmlArticleListingProvider implements ArticleListingProvide
         $selector = $this->selectorFor($source);
         $document = $this->documentFetcher->fetch($source->url);
         $crawler = new Crawler($document->content, $source->url);
+        $nodes = $crawler->filter($selector);
+        $matchedNodes = $nodes->count();
         $seenUrls = [];
+        $refs = [];
 
-        foreach ($crawler->filter($selector) as $node) {
+        foreach ($nodes as $node) {
             if (!$node instanceof \DOMElement) {
                 continue;
             }
@@ -51,13 +56,33 @@ final readonly class HtmlArticleListingProvider implements ArticleListingProvide
 
             $seenUrls[$externalUrl] = true;
 
-            yield new ExternalArticleRef(
+            $refs[] = new ExternalArticleRef(
                 externalUrl: $externalUrl,
                 sourceCode: $source->sourceCode,
                 categoryCode: $source->categoryCode,
                 listingSourceType: $source->type,
             );
         }
+
+        $this->lastSelectorStats = new HtmlListingSelectorStats(
+            selector: $selector,
+            matchedNodes: $matchedNodes,
+            uniqueUrls: \count($seenUrls),
+        );
+
+        if ($matchedNodes === 0 || $refs === []) {
+            throw new \RuntimeException(sprintf(
+                'HTML listing selector matched 0 links: "%s".',
+                $selector,
+            ));
+        }
+
+        yield from $refs;
+    }
+
+    public function lastSelectorStats(): ?HtmlListingSelectorStats
+    {
+        return $this->lastSelectorStats;
     }
 
     private function selectorFor(ListingSource $source): string

@@ -6,6 +6,7 @@ namespace App\Pipeline;
 
 use App\Diagnostics\DiagnosticLoggerInterface;
 use App\Listing\ArticleListingProviderRegistry;
+use App\Listing\HtmlListingSelectorStatsProviderInterface;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiParserFailureSenderInterface;
@@ -40,6 +41,7 @@ final readonly class AssignmentListingEnqueueProcessor
             'source' => $assignment->sourceDisplayName,
             'listingMode' => $assignment->listingMode,
             'listingUrl' => $assignment->listingUrl,
+            'listingLinkSelector' => $this->listingLinkSelector($assignment),
             'limit' => $limit,
         ]);
 
@@ -87,6 +89,7 @@ final readonly class AssignmentListingEnqueueProcessor
             'found' => $found,
             'alreadySeen' => $alreadySeen,
             'queued' => $queued,
+            'htmlSelectorStats' => $this->htmlSelectorStats($provider),
         ]);
 
         return new AssignmentListingEnqueueResult(
@@ -120,18 +123,53 @@ final readonly class AssignmentListingEnqueueProcessor
     private function sendFailure(ParserAssignment $assignment, \Throwable $exception): void
     {
         try {
+            $context = [
+                'listingUrl' => $assignment->listingUrl,
+                'exceptionClass' => $exception::class,
+            ];
+            $linkSelector = $this->listingLinkSelector($assignment);
+            if ($linkSelector !== null) {
+                $context['listingLinkSelector'] = $linkSelector;
+            }
+
             $this->failureSender->send(
                 assignmentId: $assignment->assignmentId,
                 stage: 'listing',
                 message: $exception->getMessage(),
-                context: [
-                    'listingUrl' => $assignment->listingUrl,
-                    'exceptionClass' => $exception::class,
-                ],
+                context: $context,
                 occurredAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
             );
         } catch (\Throwable) {
             // Failure reporting is diagnostic and must not stop local status calculation.
         }
+    }
+
+    private function listingLinkSelector(ParserAssignment $assignment): ?string
+    {
+        $listingConfig = $assignment->config['listing'] ?? null;
+        $selector = \is_array($listingConfig) ? ($listingConfig['linkSelector'] ?? null) : null;
+
+        return \is_string($selector) && trim($selector) !== '' ? trim($selector) : null;
+    }
+
+    /**
+     * @return array{selector: string, matchedNodes: int, uniqueUrls: int}|null
+     */
+    private function htmlSelectorStats(object $provider): ?array
+    {
+        if (!$provider instanceof HtmlListingSelectorStatsProviderInterface) {
+            return null;
+        }
+
+        $stats = $provider->lastSelectorStats();
+        if ($stats === null) {
+            return null;
+        }
+
+        return [
+            'selector' => $stats->selector,
+            'matchedNodes' => $stats->matchedNodes,
+            'uniqueUrls' => $stats->uniqueUrls,
+        ];
     }
 }

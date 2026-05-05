@@ -44,6 +44,12 @@ final class HtmlArticleListingProviderTest extends TestCase
             self::assertSame('world', $ref->categoryCode);
             self::assertSame(ListingSourceType::HtmlSection, $ref->listingSourceType);
         }
+
+        $stats = $provider->lastSelectorStats();
+        self::assertNotNull($stats);
+        self::assertSame('.news-card__link', $stats->selector);
+        self::assertSame(5, $stats->matchedNodes);
+        self::assertSame(2, $stats->uniqueUrls);
     }
 
     public function testFetchArticleRefsFailsWhenSelectorIsNotConfigured(): void
@@ -80,6 +86,39 @@ final class HtmlArticleListingProviderTest extends TestCase
             'world',
             'https://feeds.example.test/rss.xml',
         )));
+    }
+
+    public function testFetchArticleRefsFailsWhenSelectorMatchesNoLinks(): void
+    {
+        $provider = new HtmlArticleListingProvider(
+            new FakeHtmlDocumentFetcher($this->htmlFixture()),
+            new TrackingQueryUrlNormalizer(),
+        );
+
+        $source = new ListingSource(
+            ListingSourceType::HtmlSection,
+            'example',
+            'world',
+            'https://www.example.com/news/world/',
+            [
+                'listing' => [
+                    'linkSelector' => '.missing-link',
+                ],
+            ],
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('HTML listing selector matched 0 links: ".missing-link".');
+
+        try {
+            iterator_to_array($provider->fetchArticleRefs($source));
+        } finally {
+            $stats = $provider->lastSelectorStats();
+            self::assertNotNull($stats);
+            self::assertSame('.missing-link', $stats->selector);
+            self::assertSame(0, $stats->matchedNodes);
+            self::assertSame(0, $stats->uniqueUrls);
+        }
     }
 
     private function htmlFixture(): string

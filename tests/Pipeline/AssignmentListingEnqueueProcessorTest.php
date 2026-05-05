@@ -7,6 +7,8 @@ namespace App\Tests\Pipeline;
 use App\Listing\ArticleListingProviderInterface;
 use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ExternalArticleRef;
+use App\Listing\HtmlListingSelectorStats;
+use App\Listing\HtmlListingSelectorStatsProviderInterface;
 use App\Listing\ListingSource;
 use App\Listing\ListingSourceType;
 use App\MainApi\MainApiParserFailureSenderInterface;
@@ -15,6 +17,7 @@ use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\State\PendingArticleQueueInterface;
 use App\State\PendingArticle;
 use App\State\SeenArticleStoreInterface;
+use App\Diagnostics\DiagnosticLoggerInterface;
 use App\Tests\Support\NullDiagnosticLogger;
 use PHPUnit\Framework\TestCase;
 
@@ -119,6 +122,32 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
         ], $failureSender->failuresWithoutOccurredAt());
     }
 
+    public function testLogsHtmlSelectorDiagnostics(): void
+    {
+        $diagnostics = new ListingEnqueueDiagnosticLogger();
+        $processor = new AssignmentListingEnqueueProcessor(
+            new ArticleListingProviderRegistry([
+                new ListingEnqueueHtmlProvider(
+                    [$this->articleRef('https://example.com/news/1')],
+                    new HtmlListingSelectorStats('.news-card__link', matchedNodes: 3, uniqueUrls: 1),
+                ),
+            ]),
+            new ListingEnqueueSeenStore(),
+            new ListingEnqueueQueue(),
+            new ListingEnqueueFailureSender(),
+            $diagnostics,
+        );
+
+        $processor->process($this->htmlAssignment(), limit: 10);
+
+        self::assertSame('.news-card__link', $diagnostics->contextFor('listing.start')['listingLinkSelector']);
+        self::assertSame([
+            'selector' => '.news-card__link',
+            'matchedNodes' => 3,
+            'uniqueUrls' => 1,
+        ], $diagnostics->contextFor('listing.done')['htmlSelectorStats']);
+    }
+
     /**
      * @param list<ExternalArticleRef> $articleRefs
      */
@@ -151,6 +180,26 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
             articleFetchIntervalSeconds: 10,
             requestTimeoutSeconds: 15,
             config: [],
+        );
+    }
+
+    private function htmlAssignment(): ParserAssignment
+    {
+        return new ParserAssignment(
+            assignmentId: '0196a222-2222-7222-8222-222222222222',
+            sourceId: '0196a111-1111-7111-8111-111111111111',
+            sourceDisplayName: 'Example',
+            listingMode: 'html',
+            listingUrl: 'https://example.com/news',
+            articleMode: 'html',
+            listingCheckIntervalSeconds: 300,
+            articleFetchIntervalSeconds: 10,
+            requestTimeoutSeconds: 15,
+            config: [
+                'listing' => [
+                    'linkSelector' => '.news-card__link',
+                ],
+            ],
         );
     }
 
@@ -188,6 +237,63 @@ final readonly class ListingEnqueueProvider implements ArticleListingProviderInt
         }
 
         return $this->articleRefs;
+    }
+}
+
+final readonly class ListingEnqueueHtmlProvider implements ArticleListingProviderInterface, HtmlListingSelectorStatsProviderInterface
+{
+    /**
+     * @param list<ExternalArticleRef> $articleRefs
+     */
+    public function __construct(
+        private array $articleRefs,
+        private HtmlListingSelectorStats $stats,
+    ) {
+    }
+
+    public function supports(ListingSource $source): bool
+    {
+        return $source->type === ListingSourceType::HtmlSection;
+    }
+
+    public function fetchArticleRefs(ListingSource $source): iterable
+    {
+        return $this->articleRefs;
+    }
+
+    public function lastSelectorStats(): ?HtmlListingSelectorStats
+    {
+        return $this->stats;
+    }
+}
+
+final class ListingEnqueueDiagnosticLogger implements DiagnosticLoggerInterface
+{
+    /**
+     * @var list<array{event: string, context: array<string, mixed>}>
+     */
+    public array $records = [];
+
+    public function log(string $event, array $context = []): void
+    {
+        $this->records[] = [
+            'event' => $event,
+            'context' => $context,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function contextFor(string $event): array
+    {
+        foreach ($this->records as $record) {
+            if ($record['event'] === $event) {
+                return $record['context'];
+            }
+        }
+
+        throw new \RuntimeException(sprintf('Diagnostic event "%s" was not recorded.', $event));
     }
 }
 
