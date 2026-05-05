@@ -104,6 +104,7 @@ final readonly class AssignmentListingEnqueueProcessor
             sourceCode: $assignment->sourceId,
             categoryCode: $assignment->assignmentId,
             url: $assignment->listingUrl,
+            config: $assignment->config,
         );
     }
 

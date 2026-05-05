@@ -10,13 +10,9 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final readonly class HtmlArticleListingProvider implements ArticleListingProviderInterface
 {
-    /**
-     * @param array<string, string> $linkSelectors
-     */
     public function __construct(
         private DocumentFetcherInterface $documentFetcher,
         private UrlNormalizerInterface $urlNormalizer,
-        private array $linkSelectors,
     ) {
     }
 
@@ -66,14 +62,14 @@ final readonly class HtmlArticleListingProvider implements ArticleListingProvide
 
     private function selectorFor(ListingSource $source): string
     {
-        $key = $source->sourceCode.'.'.$source->categoryCode.'.'.$source->type->value;
-        $selector = $this->linkSelectors[$key] ?? null;
+        $listingConfig = $source->config['listing'] ?? null;
+        $selector = \is_array($listingConfig) ? ($listingConfig['linkSelector'] ?? null) : null;
 
-        if ($selector === null || trim($selector) === '') {
-            throw new \RuntimeException(sprintf('HTML listing selector is not configured for "%s".', $key));
+        if (!\is_string($selector) || trim($selector) === '') {
+            throw new \RuntimeException('HTML listing selector is not configured in assignment config field "listing.linkSelector".');
         }
 
-        return $selector;
+        return trim($selector);
     }
 
     private function resolveUrl(string $href, string $baseUrl): string

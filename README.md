@@ -164,11 +164,11 @@ make status
 make console cmd="parser:listing:fetch rss_feed bbc world https://feeds.bbci.co.uk/news/world/rss.xml"
 ```
 
-Для HTML listing source настрой selector в `PARSER_HTML_LISTING_LINK_SELECTORS`.
-Формат ключа:
+Для HTML listing source настрой selector в `SourceSection.config` на стороне main.
+Минимальный формат:
 
-```dotenv
-PARSER_HTML_LISTING_LINK_SELECTORS='{"source.category.html_section": ".article-link"}'
+```json
+{"listing":{"linkSelector":".article-link"}}
 ```
 
 Затем запусти:
@@ -191,7 +191,7 @@ make console cmd="parser:main:raw-article:send assignment-id https://www.bbc.com
 
 4. Изменить минимально возможный selector или parser rule.
 
-- HTML listing selectors настраиваются через `PARSER_HTML_LISTING_LINK_SELECTORS`.
+- HTML listing selectors приходят из main в assignment config: `listing.linkSelector`.
 - Правила извлечения статьи живут на стороне main в extraction profiles; parser-agent отправляет raw HTML.
 - Если у одного источника разные шаблоны страниц, сначала добавь отдельный fixture для каждого шаблона, а потом меняй логику.
 

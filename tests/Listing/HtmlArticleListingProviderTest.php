@@ -21,11 +21,15 @@ final class HtmlArticleListingProviderTest extends TestCase
             'example',
             'world',
             'https://www.example.com/news/world/',
+            [
+                'listing' => [
+                    'linkSelector' => '.news-card__link',
+                ],
+            ],
         );
         $provider = new HtmlArticleListingProvider(
             new FakeHtmlDocumentFetcher($this->htmlFixture()),
             new TrackingQueryUrlNormalizer(),
-            ['example.world.html_section' => '.news-card__link'],
         );
 
         $refs = iterator_to_array($provider->fetchArticleRefs($source), false);
@@ -47,11 +51,10 @@ final class HtmlArticleListingProviderTest extends TestCase
         $provider = new HtmlArticleListingProvider(
             new FakeHtmlDocumentFetcher($this->htmlFixture()),
             new TrackingQueryUrlNormalizer(),
-            [],
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('HTML listing selector is not configured for "example.world.html_section".');
+        $this->expectExceptionMessage('HTML listing selector is not configured in assignment config field "listing.linkSelector".');
 
         iterator_to_array($provider->fetchArticleRefs(new ListingSource(
             ListingSourceType::HtmlSection,
@@ -66,7 +69,6 @@ final class HtmlArticleListingProviderTest extends TestCase
         $provider = new HtmlArticleListingProvider(
             new FakeHtmlDocumentFetcher($this->htmlFixture()),
             new TrackingQueryUrlNormalizer(),
-            ['example.world.html_section' => '.news-card__link'],
         );
 
         $this->expectException(\InvalidArgumentException::class);

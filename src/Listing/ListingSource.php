@@ -11,6 +11,10 @@ final readonly class ListingSource
         public string $sourceCode,
         public string $categoryCode,
         public string $url,
+        /**
+         * @var array<string, mixed>
+         */
+        public array $config = [],
     ) {
         if ($this->sourceCode === '') {
             throw new \InvalidArgumentException('Listing source code must not be empty.');
