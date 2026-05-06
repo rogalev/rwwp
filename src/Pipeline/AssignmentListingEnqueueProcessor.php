@@ -31,11 +31,10 @@ final readonly class AssignmentListingEnqueueProcessor
             throw new \InvalidArgumentException('limit must be greater than zero.');
         }
 
-        $source = $this->listingSource($assignment);
-        $provider = $this->listingProviderRegistry->providerFor($source);
         $found = 0;
         $alreadySeen = 0;
         $queued = 0;
+        $provider = null;
         $this->diagnostics->log('listing.start', [
             'assignmentId' => $assignment->assignmentId,
             'source' => $assignment->sourceDisplayName,
@@ -46,6 +45,9 @@ final readonly class AssignmentListingEnqueueProcessor
         ]);
 
         try {
+            $source = $this->listingSource($assignment);
+            $provider = $this->listingProviderRegistry->providerFor($source);
+
             foreach ($provider->fetchArticleRefs($source) as $articleRef) {
                 ++$found;
 
@@ -89,7 +91,7 @@ final readonly class AssignmentListingEnqueueProcessor
             'found' => $found,
             'alreadySeen' => $alreadySeen,
             'queued' => $queued,
-            'htmlSelectorStats' => $this->htmlSelectorStats($provider),
+            'htmlSelectorStats' => $provider !== null ? $this->htmlSelectorStats($provider) : null,
         ]);
 
         return new AssignmentListingEnqueueResult(

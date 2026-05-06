@@ -122,6 +122,64 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
         ], $failureSender->failuresWithoutOccurredAt());
     }
 
+    public function testReportsUnsupportedListingModeFailure(): void
+    {
+        $failureSender = new ListingEnqueueFailureSender();
+        $processor = $this->processor(
+            articleRefs: [],
+            seenStore: new ListingEnqueueSeenStore(),
+            queue: new ListingEnqueueQueue(),
+            failureSender: $failureSender,
+        );
+
+        $result = $processor->process($this->assignment(listingMode: 'unsupported'), limit: 10);
+
+        self::assertSame(0, $result->found);
+        self::assertSame(0, $result->queued);
+        self::assertSame(1, $result->failed);
+        self::assertSame(1, $result->transportErrors);
+        self::assertSame('Unsupported listing mode "unsupported".', $result->lastError);
+        self::assertSame([
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'stage' => 'listing',
+                'message' => 'Unsupported listing mode "unsupported".',
+                'context' => [
+                    'listingUrl' => 'https://feeds.bbci.co.uk/news/world/rss.xml',
+                    'exceptionClass' => \InvalidArgumentException::class,
+                ],
+            ],
+        ], $failureSender->failuresWithoutOccurredAt());
+    }
+
+    public function testReportsMissingListingProviderFailure(): void
+    {
+        $failureSender = new ListingEnqueueFailureSender();
+        $processor = new AssignmentListingEnqueueProcessor(
+            new ArticleListingProviderRegistry([]),
+            new ListingEnqueueSeenStore(),
+            new ListingEnqueueQueue(),
+            $failureSender,
+            new NullDiagnosticLogger(),
+        );
+
+        $result = $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame(1, $result->failed);
+        self::assertSame('No listing provider supports "rss_feed".', $result->lastError);
+        self::assertSame([
+            [
+                'assignmentId' => '0196a222-2222-7222-8222-222222222222',
+                'stage' => 'listing',
+                'message' => 'No listing provider supports "rss_feed".',
+                'context' => [
+                    'listingUrl' => 'https://feeds.bbci.co.uk/news/world/rss.xml',
+                    'exceptionClass' => \RuntimeException::class,
+                ],
+            ],
+        ], $failureSender->failuresWithoutOccurredAt());
+    }
+
     public function testLogsHtmlSelectorDiagnostics(): void
     {
         $diagnostics = new ListingEnqueueDiagnosticLogger();
@@ -184,13 +242,13 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
         );
     }
 
-    private function assignment(): ParserAssignment
+    private function assignment(string $listingMode = 'rss'): ParserAssignment
     {
         return new ParserAssignment(
             assignmentId: '0196a222-2222-7222-8222-222222222222',
             sourceId: '0196a111-1111-7111-8111-111111111111',
             sourceDisplayName: 'BBC',
-            listingMode: 'rss',
+            listingMode: $listingMode,
             listingUrl: 'https://feeds.bbci.co.uk/news/world/rss.xml',
             articleMode: 'html',
             listingCheckIntervalSeconds: 300,
