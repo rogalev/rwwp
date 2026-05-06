@@ -230,7 +230,7 @@ final class ArticleFetchQueue implements PendingArticleQueueInterface
         $this->pendingArticles = $pendingArticles;
     }
 
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool
     {
         return true;
     }
@@ -352,7 +352,7 @@ final class ArticleFetchSeenStore implements SeenArticleStoreInterface
         return false;
     }
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void
     {
     }
 

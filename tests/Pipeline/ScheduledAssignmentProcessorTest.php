@@ -178,8 +178,8 @@ final class ScheduledAssignmentProcessorTest extends TestCase
     {
         return new ExternalArticleRef(
             externalUrl: $externalUrl,
-            sourceCode: 'source-1',
-            categoryCode: 'assignment-1',
+            sourceKey: 'source-1',
+            scopeKey: 'assignment-1',
             listingSourceType: ListingSourceType::RssFeed,
         );
     }
@@ -231,7 +231,7 @@ final class ScheduledQueue implements PendingArticleQueueInterface
         $this->pendingArticles = $pendingArticles;
     }
 
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool
     {
         $this->enqueuedUrls[] = $externalUrl;
 
@@ -298,7 +298,7 @@ final readonly class ScheduledSeenStore implements SeenArticleStoreInterface
         return false;
     }
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void
     {
     }
 

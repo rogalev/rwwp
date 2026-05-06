@@ -35,8 +35,8 @@ final class RssArticleListingProviderTest extends TestCase
         self::assertSame('https://www.bbc.com/news/articles/c456?page=2', $refs[1]->externalUrl);
 
         foreach ($refs as $ref) {
-            self::assertSame('bbc', $ref->sourceCode);
-            self::assertSame('world', $ref->categoryCode);
+            self::assertSame('bbc', $ref->sourceKey);
+            self::assertSame('world', $ref->scopeKey);
             self::assertSame(ListingSourceType::RssFeed, $ref->listingSourceType);
         }
     }

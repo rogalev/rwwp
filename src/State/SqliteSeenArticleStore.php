@@ -23,7 +23,7 @@ final class SqliteSeenArticleStore implements SeenArticleStoreInterface
         return $statement->fetchColumn() !== false;
     }
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void
     {
         $now = $this->now();
 
@@ -38,8 +38,8 @@ final class SqliteSeenArticleStore implements SeenArticleStoreInterface
                 status
             ) VALUES (
                 :externalUrl,
-                :sourceCode,
-                :categoryCode,
+                :sourceKey,
+                :scopeKey,
                 :firstSeenAt,
                 :lastSeenAt,
                 :status
@@ -53,8 +53,8 @@ final class SqliteSeenArticleStore implements SeenArticleStoreInterface
 
         $statement->execute([
             'externalUrl' => $externalUrl,
-            'sourceCode' => $sourceCode,
-            'categoryCode' => $categoryCode,
+            'sourceKey' => $sourceKey,
+            'scopeKey' => $scopeKey,
             'firstSeenAt' => $now,
             'lastSeenAt' => $now,
             'status' => 'SEEN',

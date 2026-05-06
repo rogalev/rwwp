@@ -21,8 +21,8 @@ final class ExternalArticleRefTest extends TestCase
         );
 
         self::assertSame('https://example.com/news/42', $ref->externalUrl);
-        self::assertSame('bbc', $ref->sourceCode);
-        self::assertSame('world', $ref->categoryCode);
+        self::assertSame('bbc', $ref->sourceKey);
+        self::assertSame('world', $ref->scopeKey);
         self::assertSame(ListingSourceType::RssFeed, $ref->listingSourceType);
     }
 
@@ -45,26 +45,26 @@ final class ExternalArticleRefTest extends TestCase
             'expectedMessage' => 'External article URL must not be empty.',
         ];
 
-        yield 'source code' => [
-            'field' => 'sourceCode',
-            'expectedMessage' => 'External article source code must not be empty.',
+        yield 'source key' => [
+            'field' => 'sourceKey',
+            'expectedMessage' => 'External article source key must not be empty.',
         ];
 
-        yield 'category code' => [
-            'field' => 'categoryCode',
-            'expectedMessage' => 'External article category code must not be empty.',
+        yield 'scope key' => [
+            'field' => 'scopeKey',
+            'expectedMessage' => 'External article scope key must not be empty.',
         ];
     }
 
     private function ref(
         string $externalUrl = 'https://example.com/news/42',
-        string $sourceCode = 'bbc',
-        string $categoryCode = 'world',
+        string $sourceKey = 'bbc',
+        string $scopeKey = 'world',
     ): ExternalArticleRef {
         return new ExternalArticleRef(
             $externalUrl,
-            $sourceCode,
-            $categoryCode,
+            $sourceKey,
+            $scopeKey,
             ListingSourceType::RssFeed,
         );
     }

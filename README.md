@@ -50,7 +50,8 @@ make clean
 Parser-agent хранит локальное состояние и output-файлы в `var/`.
 
 - SQLite state database: `var/state/parser.sqlite`
-- NDJSON output распарсенных статей: `var/output/articles.ndjson`
+- JSON-статус последнего запуска: `var/status/parser-run.json`
+- Диагностический NDJSON-лог dev-режима: `var/log/parser-diagnostic.ndjson`
 
 Директория `var/` содержит runtime-данные и не должна коммититься.
 
@@ -136,6 +137,21 @@ make diagnostic-tail
 make diagnostic-clear
 ```
 
+Повторная обработка временно упавших статей настраивается окружением:
+
+```dotenv
+PARSER_PENDING_RETRY_DELAY_SECONDS=300
+PARSER_PENDING_MAX_ATTEMPTS=5
+```
+
+Смысл статусов heartbeat:
+
+- `ok` - запуск прошел без ошибок.
+- `idle` - назначение есть, но сейчас не наступило время listing/article fetch.
+- `partial` - часть работы выполнена, но были ошибки по статьям или назначениям.
+- `degraded` - есть признаки деградации транспорта, например 429/5xx.
+- `error` - полезная работа не выполнена из-за ошибки.
+
 Показать последний сохраненный статус запуска:
 
 ```bash
@@ -189,7 +205,7 @@ make console cmd="parser:main:raw-article:send assignment-id https://www.bbc.com
 - HTML listing fixtures лежат в `tests/Fixtures/html/`.
 - Article HTML fixtures тоже лежат в `tests/Fixtures/html/`.
 
-4. Изменить минимально возможный selector или parser rule.
+4. Изменить минимально возможный selector или настройку на стороне main.
 
 - HTML listing selectors приходят из main в assignment config: `listing.linkSelector`.
 - Правила извлечения статьи живут на стороне main в extraction profiles; parser-agent отправляет raw HTML.
@@ -204,7 +220,7 @@ make test
 6. Когда тесты проходят, запустить реальную проверку.
 
 ```bash
-make console cmd="parser:check:rss bbc world https://feeds.bbci.co.uk/news/world/rss.xml --limit=1"
+make console cmd="parser:assignment:run-once assignment-id --limit=1"
 ```
 
 Затем посмотреть статус последней проверки:

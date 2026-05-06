@@ -24,14 +24,14 @@ final class InMemoryPendingArticleQueue implements PendingArticleQueueInterface
      */
     private array $failed = [];
 
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool
     {
         $key = $this->key($assignmentId, $externalUrl);
         if (isset($this->pending[$key]) || isset($this->sent[$key]) || isset($this->failed[$key])) {
             return false;
         }
 
-        $this->pending[$key] = new PendingArticle($assignmentId, $externalUrl, $sourceCode);
+        $this->pending[$key] = new PendingArticle($assignmentId, $externalUrl, $sourceKey);
 
         return true;
     }

@@ -8,7 +8,7 @@ interface SeenArticleStoreInterface
 {
     public function has(string $externalUrl): bool;
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void;
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void;
 
     public function markParsed(string $externalUrl): void;
 

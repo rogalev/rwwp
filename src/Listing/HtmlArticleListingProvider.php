@@ -58,8 +58,8 @@ final class HtmlArticleListingProvider implements ArticleListingProviderInterfac
 
             $refs[] = new ExternalArticleRef(
                 externalUrl: $externalUrl,
-                sourceCode: $source->sourceCode,
-                categoryCode: $source->categoryCode,
+                sourceKey: $source->sourceKey,
+                scopeKey: $source->scopeKey,
                 listingSourceType: $source->type,
             );
         }

@@ -36,7 +36,32 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
      */
     private function status(array $status): string
     {
-        return $this->message($status) === '' ? 'ok' : 'error';
+        $message = $this->message($status);
+        $assignments = $this->intValue($status['assignments'] ?? null);
+        $skippedAssignments = $this->intValue($status['skippedAssignments'] ?? null);
+        $failedArticles = $this->intValue($status['failed'] ?? null);
+        $transportErrors = $this->intValue($status['transportErrors'] ?? null);
+        $usefulWork = $this->intValue($status['found'] ?? null)
+            + $this->intValue($status['queued'] ?? null)
+            + $this->intValue($status['sent'] ?? null);
+
+        if ($assignments > 0 && $assignments === $skippedAssignments && $message === '') {
+            return 'idle';
+        }
+
+        if ($message !== '') {
+            return $usefulWork > 0 ? 'partial' : 'error';
+        }
+
+        if ($failedArticles > 0) {
+            return $usefulWork > 0 ? 'partial' : 'error';
+        }
+
+        if ($transportErrors > 0 || $this->hasDegradedHttpStatus($status)) {
+            return 'degraded';
+        }
+
+        return 'ok';
     }
 
     /**
@@ -75,5 +100,24 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
     private function stringValue(mixed $value): string
     {
         return \is_string($value) ? $value : '';
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    private function hasDegradedHttpStatus(array $status): bool
+    {
+        if (!\is_array($status['httpStatusCodes'] ?? null)) {
+            return false;
+        }
+
+        foreach (array_keys($status['httpStatusCodes']) as $statusCode) {
+            $statusCode = (int) $statusCode;
+            if ($statusCode === 403 || $statusCode === 429 || $statusCode >= 500) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -21,7 +21,7 @@ final class SqlitePendingArticleQueueTest extends TestCase
         self::assertCount(1, $items);
         self::assertSame('assignment-1', $items[0]->assignmentId);
         self::assertSame('https://example.com/news/1', $items[0]->externalUrl);
-        self::assertSame('source-1', $items[0]->sourceCode);
+        self::assertSame('source-1', $items[0]->sourceKey);
 
         $row = $this->findArticle($path, 'assignment-1', 'https://example.com/news/1');
         self::assertSame('pending', $row['status']);

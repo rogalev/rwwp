@@ -223,15 +223,15 @@ final readonly class ProductionListingProvider implements ArticleListingProvider
 
     public function fetchArticleRefs(ListingSource $source): iterable
     {
-        if ($source->categoryCode === $this->failingAssignmentId) {
+        if ($source->scopeKey === $this->failingAssignmentId) {
             throw new \RuntimeException('Assignment failed.');
         }
 
         return [
             new ExternalArticleRef(
-                externalUrl: 'https://example.com/news/'.substr($source->categoryCode, 0, 8),
-                sourceCode: $source->sourceCode,
-                categoryCode: $source->categoryCode,
+                externalUrl: 'https://example.com/news/'.substr($source->scopeKey, 0, 8),
+                sourceKey: $source->sourceKey,
+                scopeKey: $source->scopeKey,
                 listingSourceType: ListingSourceType::RssFeed,
             ),
         ];
@@ -293,7 +293,7 @@ final class ProductionSeenStore implements SeenArticleStoreInterface
         return false;
     }
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void
     {
     }
 

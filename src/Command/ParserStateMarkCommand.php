@@ -38,11 +38,11 @@ final class ParserStateMarkCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $url = (string) $input->getArgument('url');
-        $sourceCode = (string) $input->getOption('source');
-        $categoryCode = (string) $input->getOption('category');
+        $sourceKey = (string) $input->getOption('source');
+        $scopeKey = (string) $input->getOption('category');
         $alreadySeen = $this->seenArticleStore->has($url);
 
-        $this->seenArticleStore->markSeen($url, $sourceCode, $categoryCode);
+        $this->seenArticleStore->markSeen($url, $sourceKey, $scopeKey);
 
         if ($alreadySeen) {
             $io->warning(sprintf('URL already exists in parser state: %s', $url));

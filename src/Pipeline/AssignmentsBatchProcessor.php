@@ -22,8 +22,10 @@ final readonly class AssignmentsBatchProcessor
 
     public function process(int $limitPerAssignment): AssignmentsBatchProcessingResult
     {
+        $startedAt = microtime(true);
+
         if ($limitPerAssignment <= 0) {
-            $this->writeFailedStatus('limit-per-assignment must be greater than zero.');
+            $this->writeFailedStatus('limit-per-assignment must be greater than zero.', $startedAt);
 
             throw new \InvalidArgumentException('limit-per-assignment must be greater than zero.');
         }
@@ -31,7 +33,7 @@ final readonly class AssignmentsBatchProcessor
         try {
             $assignments = $this->assignmentsProvider->list();
         } catch (\Throwable $exception) {
-            $this->writeFailedStatus($exception->getMessage());
+            $this->writeFailedStatus($exception->getMessage(), $startedAt);
 
             throw $exception;
         }
@@ -147,15 +149,16 @@ final readonly class AssignmentsBatchProcessor
             stage: count($assignments) === $skippedAssignments && $assignments !== [] ? 'idle' : $stage,
         );
 
-        $this->writeStatus($batchResult);
+        $this->writeStatus($batchResult, $startedAt);
 
         return $batchResult;
     }
 
-    private function writeFailedStatus(string $lastError): void
+    private function writeFailedStatus(string $lastError, float $startedAt): void
     {
         $this->statusWriter->write([
             'mode' => 'main_assignments_batch',
+            'durationSeconds' => $this->durationSeconds($startedAt),
             'assignments' => 0,
             'found' => 0,
             'alreadySeen' => 0,
@@ -171,10 +174,11 @@ final readonly class AssignmentsBatchProcessor
         ]);
     }
 
-    private function writeStatus(AssignmentsBatchProcessingResult $result): void
+    private function writeStatus(AssignmentsBatchProcessingResult $result, float $startedAt): void
     {
         $this->statusWriter->write([
             'mode' => 'main_assignments_batch',
+            'durationSeconds' => $this->durationSeconds($startedAt),
             'assignments' => $result->assignments,
             'found' => $result->found,
             'alreadySeen' => $result->alreadySeen,
@@ -188,6 +192,11 @@ final readonly class AssignmentsBatchProcessor
             'assignmentErrors' => $result->assignmentErrors,
             'lastError' => $result->lastError,
         ]);
+    }
+
+    private function durationSeconds(float $startedAt): int
+    {
+        return max(0, (int) round(microtime(true) - $startedAt));
     }
 
     /**

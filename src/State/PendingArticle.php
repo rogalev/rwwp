@@ -9,11 +9,11 @@ final readonly class PendingArticle
     public function __construct(
         public string $assignmentId,
         public string $externalUrl,
-        public string $sourceCode,
+        public string $sourceKey,
     ) {
         $this->assertNotBlank($this->assignmentId, 'assignmentId');
         $this->assertNotBlank($this->externalUrl, 'externalUrl');
-        $this->assertNotBlank($this->sourceCode, 'sourceCode');
+        $this->assertNotBlank($this->sourceKey, 'sourceKey');
     }
 
     private function assertNotBlank(string $value, string $field): void

@@ -6,7 +6,7 @@ namespace App\State;
 
 interface PendingArticleQueueInterface
 {
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool;
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool;
 
     /**
      * @return list<PendingArticle>

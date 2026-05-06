@@ -8,8 +8,8 @@ final readonly class ListingSource
 {
     public function __construct(
         public ListingSourceType $type,
-        public string $sourceCode,
-        public string $categoryCode,
+        public string $sourceKey,
+        public string $scopeKey,
         public string $url,
         /**
          * @var array<string, mixed>
@@ -17,12 +17,12 @@ final readonly class ListingSource
         public array $config = [],
         public ?int $requestTimeoutSeconds = null,
     ) {
-        if ($this->sourceCode === '') {
-            throw new \InvalidArgumentException('Listing source code must not be empty.');
+        if ($this->sourceKey === '') {
+            throw new \InvalidArgumentException('Listing source key must not be empty.');
         }
 
-        if ($this->categoryCode === '') {
-            throw new \InvalidArgumentException('Listing category code must not be empty.');
+        if ($this->scopeKey === '') {
+            throw new \InvalidArgumentException('Listing scope key must not be empty.');
         }
 
         if ($this->url === '') {

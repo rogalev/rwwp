@@ -46,12 +46,12 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
             [
                 'assignmentId' => '0196a222-2222-7222-8222-222222222222',
                 'externalUrl' => 'https://example.com/news/1',
-                'sourceCode' => '0196a111-1111-7111-8111-111111111111',
+                'sourceKey' => '0196a111-1111-7111-8111-111111111111',
             ],
             [
                 'assignmentId' => '0196a222-2222-7222-8222-222222222222',
                 'externalUrl' => 'https://example.com/news/2',
-                'sourceCode' => '0196a111-1111-7111-8111-111111111111',
+                'sourceKey' => '0196a111-1111-7111-8111-111111111111',
             ],
         ], $queue->enqueued);
     }
@@ -282,8 +282,8 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
     {
         return new ExternalArticleRef(
             externalUrl: $externalUrl,
-            sourceCode: '0196a111-1111-7111-8111-111111111111',
-            categoryCode: '0196a222-2222-7222-8222-222222222222',
+            sourceKey: '0196a111-1111-7111-8111-111111111111',
+            scopeKey: '0196a222-2222-7222-8222-222222222222',
             listingSourceType: ListingSourceType::RssFeed,
         );
     }
@@ -407,7 +407,7 @@ final readonly class ListingEnqueueSeenStore implements SeenArticleStoreInterfac
         return \in_array($externalUrl, $this->seenUrls, true);
     }
 
-    public function markSeen(string $externalUrl, string $sourceCode, string $categoryCode): void
+    public function markSeen(string $externalUrl, string $sourceKey, string $scopeKey): void
     {
     }
 
@@ -423,16 +423,16 @@ final readonly class ListingEnqueueSeenStore implements SeenArticleStoreInterfac
 final class ListingEnqueueQueue implements PendingArticleQueueInterface
 {
     /**
-     * @var list<array{assignmentId: string, externalUrl: string, sourceCode: string}>
+     * @var list<array{assignmentId: string, externalUrl: string, sourceKey: string}>
      */
     public array $enqueued = [];
 
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool
     {
         $this->enqueued[] = [
             'assignmentId' => $assignmentId,
             'externalUrl' => $externalUrl,
-            'sourceCode' => $sourceCode,
+            'sourceKey' => $sourceKey,
         ];
 
         return true;

@@ -39,7 +39,7 @@ final class HeartbeatSendCommandTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertSame('2026-05-02T10:00:00+00:00', $sender->checkedAt?->format(\DateTimeInterface::ATOM));
-        self::assertSame('ok', $sender->status);
+        self::assertSame('partial', $sender->status);
         self::assertSame('', $sender->message);
         self::assertSame([
             'durationSeconds' => 0,

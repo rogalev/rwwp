@@ -60,7 +60,7 @@ final readonly class AssignmentListingEnqueueProcessor
                     break;
                 }
 
-                if ($this->pendingArticleQueue->enqueue($assignment->assignmentId, $articleRef->externalUrl, $articleRef->sourceCode)) {
+                if ($this->pendingArticleQueue->enqueue($assignment->assignmentId, $articleRef->externalUrl, $articleRef->sourceKey)) {
                     $this->diagnostics->log('listing.article_queued', [
                         'assignmentId' => $assignment->assignmentId,
                         'externalUrl' => $articleRef->externalUrl,
@@ -106,8 +106,8 @@ final readonly class AssignmentListingEnqueueProcessor
     {
         return new ListingSource(
             type: $this->listingSourceType($assignment->listingMode),
-            sourceCode: $assignment->sourceId,
-            categoryCode: $assignment->assignmentId,
+            sourceKey: $assignment->sourceId,
+            scopeKey: $assignment->assignmentId,
             url: $assignment->listingUrl,
             requestTimeoutSeconds: $assignment->requestTimeoutSeconds,
             config: $assignment->config,

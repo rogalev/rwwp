@@ -44,8 +44,8 @@ final class ListingProcessCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $source = new ListingSource(
             type: ListingSourceType::from((string) $input->getArgument('type')),
-            sourceCode: (string) $input->getArgument('source'),
-            categoryCode: (string) $input->getArgument('category'),
+            sourceKey: (string) $input->getArgument('source'),
+            scopeKey: (string) $input->getArgument('category'),
             url: (string) $input->getArgument('url'),
         );
         $provider = $this->listingProviderRegistry->providerFor($source);
@@ -63,8 +63,8 @@ final class ListingProcessCommand extends Command
 
             $this->markSeen($articleRef);
             $newRows[] = [
-                $articleRef->sourceCode,
-                $articleRef->categoryCode,
+                $articleRef->sourceKey,
+                $articleRef->scopeKey,
                 $articleRef->listingSourceType->value,
                 $articleRef->externalUrl,
             ];
@@ -84,8 +84,8 @@ final class ListingProcessCommand extends Command
     {
         $this->seenArticleStore->markSeen(
             externalUrl: $articleRef->externalUrl,
-            sourceCode: $articleRef->sourceCode,
-            categoryCode: $articleRef->categoryCode,
+            sourceKey: $articleRef->sourceKey,
+            scopeKey: $articleRef->scopeKey,
         );
     }
 }

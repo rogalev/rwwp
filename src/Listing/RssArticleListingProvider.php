@@ -41,8 +41,8 @@ final readonly class RssArticleListingProvider implements ArticleListingProvider
 
             yield new ExternalArticleRef(
                 externalUrl: $externalUrl,
-                sourceCode: $source->sourceCode,
-                categoryCode: $source->categoryCode,
+                sourceKey: $source->sourceKey,
+                scopeKey: $source->scopeKey,
                 listingSourceType: $source->type,
             );
         }

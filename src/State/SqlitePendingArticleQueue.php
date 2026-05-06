@@ -8,17 +8,23 @@ use PDO;
 
 final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
 {
-    private const FAILED_RETRY_DELAY_SECONDS = 300;
-    private const MAX_FAILED_ATTEMPTS = 5;
-
     private ?PDO $connection = null;
 
     public function __construct(
         private readonly string $dsn,
+        private readonly int $failedRetryDelaySeconds = 300,
+        private readonly int $maxFailedAttempts = 5,
     ) {
+        if ($this->failedRetryDelaySeconds < 0) {
+            throw new \InvalidArgumentException('failedRetryDelaySeconds must be greater than or equal to zero.');
+        }
+
+        if ($this->maxFailedAttempts <= 0) {
+            throw new \InvalidArgumentException('maxFailedAttempts must be greater than zero.');
+        }
     }
 
-    public function enqueue(string $assignmentId, string $externalUrl, string $sourceCode): bool
+    public function enqueue(string $assignmentId, string $externalUrl, string $sourceKey): bool
     {
         $now = $this->now();
         $statement = $this->connection()->prepare(
@@ -33,7 +39,7 @@ final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
             ) VALUES (
                 :assignmentId,
                 :externalUrl,
-                :sourceCode,
+                :sourceKey,
                 :status,
                 :firstSeenAt,
                 :updatedAt
@@ -45,7 +51,7 @@ final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
         $statement->execute([
             'assignmentId' => $assignmentId,
             'externalUrl' => $externalUrl,
-            'sourceCode' => $sourceCode,
+            'sourceKey' => $sourceKey,
             'status' => 'pending',
             'firstSeenAt' => $now,
             'updatedAt' => $now,
@@ -80,7 +86,7 @@ final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
         $statement->bindValue('assignmentId', $assignmentId);
         $statement->bindValue('pendingStatus', 'pending');
         $statement->bindValue('failedStatus', 'failed');
-        $statement->bindValue('maxFailedAttempts', self::MAX_FAILED_ATTEMPTS, PDO::PARAM_INT);
+        $statement->bindValue('maxFailedAttempts', $this->maxFailedAttempts, PDO::PARAM_INT);
         $statement->bindValue('retryAfter', $this->retryAfterThreshold());
         $statement->bindValue('limit', $limit, PDO::PARAM_INT);
         $statement->execute();
@@ -90,7 +96,7 @@ final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
             $items[] = new PendingArticle(
                 assignmentId: (string) $row['assignment_id'],
                 externalUrl: (string) $row['external_url'],
-                sourceCode: (string) $row['source_code'],
+                sourceKey: (string) $row['source_code'],
             );
         }
 
@@ -224,7 +230,7 @@ final class SqlitePendingArticleQueue implements PendingArticleQueueInterface
     private function retryAfterThreshold(): string
     {
         return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
-            ->modify('-'.self::FAILED_RETRY_DELAY_SECONDS.' seconds')
+            ->modify('-'.$this->failedRetryDelaySeconds.' seconds')
             ->format(\DateTimeInterface::ATOM);
     }
 }

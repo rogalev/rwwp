@@ -21,8 +21,8 @@ final class ListingSourceTest extends TestCase
         );
 
         self::assertSame(ListingSourceType::RssFeed, $source->type);
-        self::assertSame('bbc', $source->sourceCode);
-        self::assertSame('world', $source->categoryCode);
+        self::assertSame('bbc', $source->sourceKey);
+        self::assertSame('world', $source->scopeKey);
         self::assertSame('https://example.com/rss.xml', $source->url);
     }
 
@@ -40,14 +40,14 @@ final class ListingSourceTest extends TestCase
      */
     public static function invalidRequiredStringProvider(): iterable
     {
-        yield 'source code' => [
-            'field' => 'sourceCode',
-            'expectedMessage' => 'Listing source code must not be empty.',
+        yield 'source key' => [
+            'field' => 'sourceKey',
+            'expectedMessage' => 'Listing source key must not be empty.',
         ];
 
-        yield 'category code' => [
-            'field' => 'categoryCode',
-            'expectedMessage' => 'Listing category code must not be empty.',
+        yield 'scope key' => [
+            'field' => 'scopeKey',
+            'expectedMessage' => 'Listing scope key must not be empty.',
         ];
 
         yield 'url' => [
@@ -57,14 +57,14 @@ final class ListingSourceTest extends TestCase
     }
 
     private function source(
-        string $sourceCode = 'bbc',
-        string $categoryCode = 'world',
+        string $sourceKey = 'bbc',
+        string $scopeKey = 'world',
         string $url = 'https://example.com/rss.xml',
     ): ListingSource {
         return new ListingSource(
             ListingSourceType::RssFeed,
-            $sourceCode,
-            $categoryCode,
+            $sourceKey,
+            $scopeKey,
             $url,
         );
     }
