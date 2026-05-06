@@ -83,7 +83,38 @@ final class SqlitePendingArticleQueueTest extends TestCase
         $row = $this->findArticle($path, 'assignment-1', 'https://example.com/news/1');
         self::assertSame('failed', $row['status']);
         self::assertIsString($row['last_attempt_at']);
+        self::assertSame(1, $row['attempt_count']);
         self::assertSame('HTTP 403', $row['error']);
+    }
+
+    public function testRetriesFailedArticleAfterRetryDelay(): void
+    {
+        $path = $this->temporaryStatePath();
+        $queue = new SqlitePendingArticleQueue('sqlite:'.$path);
+        $queue->enqueue('assignment-1', 'https://example.com/news/1', 'source-1');
+        $queue->markFailed('assignment-1', 'https://example.com/news/1', 'Temporary main API error.');
+        $this->setLastAttemptAt($path, 'assignment-1', 'https://example.com/news/1', '2000-01-01T00:00:00+00:00');
+
+        $items = $queue->takePending('assignment-1', 10);
+
+        self::assertCount(1, $items);
+        self::assertSame('https://example.com/news/1', $items[0]->externalUrl);
+    }
+
+    public function testStopsRetryingFailedArticleAfterMaxAttempts(): void
+    {
+        $path = $this->temporaryStatePath();
+        $queue = new SqlitePendingArticleQueue('sqlite:'.$path);
+        $queue->enqueue('assignment-1', 'https://example.com/news/1', 'source-1');
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            $queue->markFailed('assignment-1', 'https://example.com/news/1', 'Temporary main API error.');
+            $this->setLastAttemptAt($path, 'assignment-1', 'https://example.com/news/1', '2000-01-01T00:00:00+00:00');
+        }
+
+        self::assertSame([], $queue->takePending('assignment-1', 10));
+
+        $row = $this->findArticle($path, 'assignment-1', 'https://example.com/news/1');
+        self::assertSame(5, $row['attempt_count']);
     }
 
     public function testRejectsNonPositiveLimit(): void
@@ -102,7 +133,7 @@ final class SqlitePendingArticleQueueTest extends TestCase
     }
 
     /**
-     * @return array{status: string, last_attempt_at: ?string, error: ?string}
+     * @return array{status: string, last_attempt_at: ?string, attempt_count: int, error: ?string}
      */
     private function findArticle(string $path, string $assignmentId, string $externalUrl): array
     {
@@ -111,7 +142,7 @@ final class SqlitePendingArticleQueueTest extends TestCase
 
         $statement = $connection->prepare(
             <<<'SQL'
-            SELECT status, last_attempt_at, error
+            SELECT status, last_attempt_at, attempt_count, error
             FROM pending_articles
             WHERE assignment_id = :assignmentId
               AND external_url = :externalUrl
@@ -124,7 +155,28 @@ final class SqlitePendingArticleQueueTest extends TestCase
 
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         self::assertIsArray($row);
+        $row['attempt_count'] = (int) $row['attempt_count'];
 
         return $row;
+    }
+
+    private function setLastAttemptAt(string $path, string $assignmentId, string $externalUrl, string $lastAttemptAt): void
+    {
+        $connection = new PDO('sqlite:'.$path);
+        $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $statement = $connection->prepare(
+            <<<'SQL'
+            UPDATE pending_articles
+            SET last_attempt_at = :lastAttemptAt
+            WHERE assignment_id = :assignmentId
+              AND external_url = :externalUrl
+            SQL
+        );
+        $statement->execute([
+            'lastAttemptAt' => $lastAttemptAt,
+            'assignmentId' => $assignmentId,
+            'externalUrl' => $externalUrl,
+        ]);
     }
 }
