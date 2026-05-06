@@ -75,7 +75,7 @@ final readonly class FakeDocumentFetcher implements DocumentFetcherInterface
     ) {
     }
 
-    public function fetch(string $url, array $headers = []): FetchedDocument
+    public function fetch(string $url, array $headers = [], ?float $timeout = null): FetchedDocument
     {
         return new FetchedDocument(
             url: $url,

@@ -58,7 +58,11 @@ final readonly class AssignmentArticleFetchProcessor
             ]);
 
             try {
-                $document = $this->documentFetcher->fetch($pendingArticle->externalUrl, $httpHeaders);
+                $document = $this->documentFetcher->fetch(
+                    $pendingArticle->externalUrl,
+                    $httpHeaders,
+                    $assignment->requestTimeoutSeconds,
+                );
                 $httpStatusCodes[$document->statusCode] = ($httpStatusCodes[$document->statusCode] ?? 0) + 1;
                 $this->diagnostics->log('article_fetch.item_fetched', [
                     'assignmentId' => $assignment->assignmentId,

@@ -26,7 +26,7 @@ final readonly class RssArticleListingProvider implements ArticleListingProvider
             throw new \InvalidArgumentException(sprintf('Unsupported listing source type "%s".', $source->type->value));
         }
 
-        $document = $this->documentFetcher->fetch($source->url);
+        $document = $this->documentFetcher->fetch($source->url, timeout: $source->requestTimeoutSeconds);
         $rss = $this->parseXml($document->content, $source->url);
         $seenUrls = [];
 

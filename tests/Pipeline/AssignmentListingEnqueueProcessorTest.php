@@ -148,6 +148,23 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
         ], $diagnostics->contextFor('listing.done')['htmlSelectorStats']);
     }
 
+    public function testPassesAssignmentRequestTimeoutToListingSource(): void
+    {
+        $provider = new ListingEnqueueSourceCapturingProvider();
+        $processor = new AssignmentListingEnqueueProcessor(
+            new ArticleListingProviderRegistry([$provider]),
+            new ListingEnqueueSeenStore(),
+            new ListingEnqueueQueue(),
+            new ListingEnqueueFailureSender(),
+            new NullDiagnosticLogger(),
+        );
+
+        $processor->process($this->assignment(), limit: 10);
+
+        self::assertSame([15], $provider->requestTimeouts);
+    }
+
+
     /**
      * @param list<ExternalArticleRef> $articleRefs
      */
@@ -264,6 +281,26 @@ final readonly class ListingEnqueueHtmlProvider implements ArticleListingProvide
     public function lastSelectorStats(): ?HtmlListingSelectorStats
     {
         return $this->stats;
+    }
+}
+
+final class ListingEnqueueSourceCapturingProvider implements ArticleListingProviderInterface
+{
+    /**
+     * @var list<int|null>
+     */
+    public array $requestTimeouts = [];
+
+    public function supports(ListingSource $source): bool
+    {
+        return true;
+    }
+
+    public function fetchArticleRefs(ListingSource $source): iterable
+    {
+        $this->requestTimeouts[] = $source->requestTimeoutSeconds;
+
+        return [];
     }
 }
 

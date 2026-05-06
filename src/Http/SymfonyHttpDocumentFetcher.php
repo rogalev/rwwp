@@ -22,15 +22,17 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
     ) {
     }
 
-    public function fetch(string $url, array $headers = []): FetchedDocument
+    public function fetch(string $url, array $headers = [], ?float $timeout = null): FetchedDocument
     {
         $userAgent = $this->userAgentProvider->next();
         $lastTransportException = null;
+        $effectiveTimeout = $this->effectiveTimeout($timeout);
+        $effectiveMaxDuration = $this->effectiveMaxDuration($timeout);
 
         for ($attempt = 1; $attempt <= $this->maxAttempts(); ++$attempt) {
             try {
                 $this->sleepBeforeRequest();
-                $response = $this->request($url, $userAgent, $headers);
+                $response = $this->request($url, $userAgent, $headers, $effectiveTimeout, $effectiveMaxDuration);
                 $statusCode = $response->getStatusCode();
 
                 if ($statusCode >= 200 && $statusCode < 300) {
@@ -66,7 +68,13 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
     /**
      * @param array<string, string> $headers
      */
-    private function request(string $url, string $userAgent, array $headers): ResponseInterface
+    private function request(
+        string $url,
+        string $userAgent,
+        array $headers,
+        float $timeout,
+        float $maxDuration,
+    ): ResponseInterface
     {
         return $this->httpClient->request('GET', $url, [
             'headers' => [
@@ -75,9 +83,27 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
                 'Accept-Language' => 'en-US,en;q=0.9',
                 ...$headers,
             ],
-            'timeout' => $this->timeout,
-            'max_duration' => $this->maxDuration,
+            'timeout' => $timeout,
+            'max_duration' => $maxDuration,
         ]);
+    }
+
+    private function effectiveTimeout(?float $timeout): float
+    {
+        if ($timeout !== null && $timeout > 0) {
+            return $timeout;
+        }
+
+        return $this->timeout;
+    }
+
+    private function effectiveMaxDuration(?float $timeout): float
+    {
+        if ($timeout !== null && $timeout > 0) {
+            return $timeout;
+        }
+
+        return $this->maxDuration;
     }
 
     private function maxAttempts(): int

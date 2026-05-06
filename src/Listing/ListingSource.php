@@ -15,6 +15,7 @@ final readonly class ListingSource
          * @var array<string, mixed>
          */
         public array $config = [],
+        public ?int $requestTimeoutSeconds = null,
     ) {
         if ($this->sourceCode === '') {
             throw new \InvalidArgumentException('Listing source code must not be empty.');

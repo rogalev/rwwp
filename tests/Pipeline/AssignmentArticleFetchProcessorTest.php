@@ -72,6 +72,7 @@ final class AssignmentArticleFetchProcessorTest extends TestCase
                     'Referer' => 'https://example.com/',
                     'Accept' => 'text/html',
                 ],
+                'timeout' => 15.0,
             ],
         ], $fetcher->fetches);
     }
@@ -261,7 +262,7 @@ final class ArticleFetchDocumentFetcher implements DocumentFetcherInterface
     public array $fetchedUrls = [];
 
     /**
-     * @var list<array{url: string, headers: array<string, string>}>
+     * @var list<array{url: string, headers: array<string, string>, timeout: ?float}>
      */
     public array $fetches = [];
 
@@ -270,12 +271,13 @@ final class ArticleFetchDocumentFetcher implements DocumentFetcherInterface
     ) {
     }
 
-    public function fetch(string $url, array $headers = []): FetchedDocument
+    public function fetch(string $url, array $headers = [], ?float $timeout = null): FetchedDocument
     {
         $this->fetchedUrls[] = $url;
         $this->fetches[] = [
             'url' => $url,
             'headers' => $headers,
+            'timeout' => $timeout,
         ];
 
         if ($this->fetchException !== null) {

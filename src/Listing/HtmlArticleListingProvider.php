@@ -30,7 +30,7 @@ final class HtmlArticleListingProvider implements ArticleListingProviderInterfac
         }
 
         $selector = $this->selectorFor($source);
-        $document = $this->documentFetcher->fetch($source->url);
+        $document = $this->documentFetcher->fetch($source->url, timeout: $source->requestTimeoutSeconds);
         $crawler = new Crawler($document->content, $source->url);
         $nodes = $crawler->filter($selector);
         $matchedNodes = $nodes->count();

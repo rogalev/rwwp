@@ -9,5 +9,5 @@ interface DocumentFetcherInterface
     /**
      * @param array<string, string> $headers
      */
-    public function fetch(string $url, array $headers = []): FetchedDocument;
+    public function fetch(string $url, array $headers = [], ?float $timeout = null): FetchedDocument;
 }

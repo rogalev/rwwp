@@ -103,6 +103,18 @@ final class SymfonyHttpDocumentFetcherTest extends TestCase
         self::assertContains('Referer: https://example.com/', $headers);
     }
 
+    public function testFetchUsesPerRequestTimeoutOverride(): void
+    {
+        $response = new MockResponse('Article HTML', ['http_code' => 200]);
+        $fetcher = $this->fetcher(new MockHttpClient($response));
+
+        $fetcher->fetch('https://example.com/news/42', timeout: 7);
+
+        $options = $response->getRequestOptions();
+        self::assertSame(7.0, $options['timeout']);
+        self::assertSame(7.0, $options['max_duration']);
+    }
+
     private function fetcher(MockHttpClient $httpClient): SymfonyHttpDocumentFetcher
     {
         return new SymfonyHttpDocumentFetcher(
