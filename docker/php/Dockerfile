@@ -11,6 +11,7 @@ RUN apk add --no-cache \
     && docker-php-ext-install \
         intl \
         opcache \
+        pcntl \
         pdo_sqlite \
         zip
 

@@ -81,6 +81,12 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
     {
         return [
             'durationSeconds' => $this->intValue($status['durationSeconds'] ?? null),
+            'processedAssignments' => $this->intValue($status['processedAssignments'] ?? null),
+            'totalAssignments' => $this->intValue($status['totalAssignments'] ?? ($status['assignments'] ?? null)),
+            'timedOutAssignments' => $this->intValue($status['timedOutAssignments'] ?? null),
+            'currentAssignmentId' => $this->stringValue($status['currentAssignmentId'] ?? null),
+            'currentSource' => $this->stringValue($status['currentSource'] ?? null),
+            'lastHeartbeatAt' => $this->stringValue($status['lastHeartbeatAt'] ?? null),
             'skippedAssignments' => $this->intValue($status['skippedAssignments'] ?? null),
             'foundLinks' => $this->intValue($status['found'] ?? null),
             'queuedArticles' => $this->intValue($status['queued'] ?? null),

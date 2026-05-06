@@ -14,6 +14,12 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
         $payload = (new ParserRunStatusHeartbeatPayloadFactory())->create([
             'checkedAt' => '2026-05-02T10:00:00+00:00',
             'durationSeconds' => 7,
+            'totalAssignments' => 4,
+            'processedAssignments' => 3,
+            'timedOutAssignments' => 1,
+            'currentAssignmentId' => 'assignment-3',
+            'currentSource' => 'BBC',
+            'lastHeartbeatAt' => '2026-05-02T10:00:07+00:00',
             'skippedAssignments' => 2,
             'found' => 5,
             'queued' => 4,
@@ -30,6 +36,12 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
         self::assertSame('', $payload->message);
         self::assertSame([
             'durationSeconds' => 7,
+            'processedAssignments' => 3,
+            'totalAssignments' => 4,
+            'timedOutAssignments' => 1,
+            'currentAssignmentId' => 'assignment-3',
+            'currentSource' => 'BBC',
+            'lastHeartbeatAt' => '2026-05-02T10:00:07+00:00',
             'skippedAssignments' => 2,
             'foundLinks' => 5,
             'queuedArticles' => 4,

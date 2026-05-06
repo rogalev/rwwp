@@ -20,13 +20,16 @@ use App\MainApi\SendRawArticleResult;
 use App\Pipeline\AssignmentArticleFetchProcessor;
 use App\Pipeline\AssignmentListingEnqueueProcessor;
 use App\Pipeline\AssignmentsBatchProcessor;
+use App\Pipeline\DirectAssignmentProcessorGuard;
 use App\Pipeline\ScheduledAssignmentProcessor;
 use App\Schedule\AssignmentScheduleDecider;
 use App\State\SeenArticleStoreInterface;
+use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusWriter;
 use App\Tests\Support\InMemoryAssignmentScheduleStore;
 use App\Tests\Support\InMemoryPendingArticleQueue;
 use App\Tests\Support\NullDiagnosticLogger;
+use App\Tests\Support\NullHeartbeatSender;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -210,10 +213,13 @@ final class AssignmentsProcessCommandTest extends TestCase
 
         return new AssignmentsBatchProcessor(
             new AssignmentsProcessAssignmentsProvider($assignments),
-            $processor,
+            new DirectAssignmentProcessorGuard($processor),
             new ParserRunStatusWriter($statusPath),
             new AssignmentScheduleDecider($scheduleStore),
             $scheduleStore,
+            new ParserRunStatusHeartbeatPayloadFactory(),
+            new NullHeartbeatSender(),
+            new AssignmentsProcessFailureSender(),
         );
     }
 

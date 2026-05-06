@@ -20,6 +20,7 @@ parameters:
     parser.diagnostic_log_path: '%env(resolve:PARSER_DIAGNOSTIC_LOG_PATH)%'
     parser.pending_retry_delay_seconds: '%env(int:PARSER_PENDING_RETRY_DELAY_SECONDS)%'
     parser.pending_max_attempts: '%env(int:PARSER_PENDING_MAX_ATTEMPTS)%'
+    parser.assignment_timeout_seconds: '%env(int:PARSER_ASSIGNMENT_TIMEOUT_SECONDS)%'
     main_api.base_url: '%env(resolve:MAIN_API_BASE_URL)%'
     main_api.parser_instance_id: '%env(resolve:PARSER_INSTANCE_ID)%'
     main_api.parser_api_key: '%env(resolve:PARSER_API_KEY)%'
@@ -47,6 +48,9 @@ services:
     App\State\PendingArticleQueueInterface:
         alias: App\State\SqlitePendingArticleQueue
 
+    App\Pipeline\AssignmentProcessorGuardInterface:
+        alias: App\Pipeline\PcntlAssignmentProcessorGuard
+
     App\Diagnostics\DiagnosticLoggerInterface:
         alias: App\Diagnostics\NdjsonDiagnosticLogger
 
@@ -68,6 +72,10 @@ services:
             $dsn: '%parser.state_dsn%'
             $failedRetryDelaySeconds: '%parser.pending_retry_delay_seconds%'
             $maxFailedAttempts: '%parser.pending_max_attempts%'
+
+    App\Pipeline\PcntlAssignmentProcessorGuard:
+        arguments:
+            $timeoutSeconds: '%parser.assignment_timeout_seconds%'
 
     App\Http\DocumentFetcherInterface:
         alias: App\Http\SymfonyHttpDocumentFetcher

@@ -144,6 +144,25 @@ PARSER_PENDING_RETRY_DELAY_SECONDS=300
 PARSER_PENDING_MAX_ATTEMPTS=5
 ```
 
+Timeout одного assignment настраивается отдельно:
+
+```dotenv
+PARSER_ASSIGNMENT_TIMEOUT_SECONDS=120
+```
+
+Этот timeout защищает весь batch от зависшего assignment. В production используется
+`pcntl_fork`: каждый assignment обрабатывается в child process, parent ждет его
+завершения и убивает child через `SIGKILL`, если превышен лимит. Такой guard
+реально прерывает зависший assignment и позволяет batch перейти к следующему.
+Если timeout сработал, assignment считается ошибочным, ошибка попадает в status
+и best-effort отправляется в `main` как parser failure.
+
+Heartbeat теперь отправляется не только в конце production-команды, но и по ходу
+batch после каждого assignment, а также после финальной записи status. Эти
+batch heartbeat best-effort: если main временно недоступен, batch продолжает
+работу. Финальный heartbeat в `parser:production:run-once` сохраняет прежнее
+строгое поведение команды.
+
 Смысл статусов heartbeat:
 
 - `ok` - запуск прошел без ошибок.
@@ -151,6 +170,15 @@ PARSER_PENDING_MAX_ATTEMPTS=5
 - `partial` - часть работы выполнена, но были ошибки по статьям или назначениям.
 - `degraded` - есть признаки деградации транспорта, например 429/5xx.
 - `error` - полезная работа не выполнена из-за ошибки.
+
+В status/heartbeat также есть progress-поля:
+
+- `processedAssignments`
+- `totalAssignments`
+- `timedOutAssignments`
+- `currentAssignmentId`
+- `currentSource`
+- `lastHeartbeatAt`
 
 Показать последний сохраненный статус запуска:
 

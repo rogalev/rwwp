@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace App\Pipeline;
 
 use App\MainApi\MainApiAssignmentsProviderInterface;
+use App\MainApi\MainApiHeartbeatSenderInterface;
+use App\MainApi\MainApiParserFailureSenderInterface;
 use App\Schedule\AssignmentScheduleDecider;
 use App\State\AssignmentScheduleStoreInterface;
+use App\Status\ParserRunStatusHeartbeatPayloadFactory;
 use App\Status\ParserRunStatusWriter;
 
 final readonly class AssignmentsBatchProcessor
 {
     public function __construct(
         private MainApiAssignmentsProviderInterface $assignmentsProvider,
-        private ScheduledAssignmentProcessor $processor,
+        private AssignmentProcessorGuardInterface $processorGuard,
         private ParserRunStatusWriter $statusWriter,
         private AssignmentScheduleDecider $scheduleDecider,
         private AssignmentScheduleStoreInterface $scheduleStore,
+        private ParserRunStatusHeartbeatPayloadFactory $heartbeatPayloadFactory,
+        private MainApiHeartbeatSenderInterface $heartbeatSender,
+        private MainApiParserFailureSenderInterface $failureSender,
     ) {
     }
 
@@ -49,13 +55,19 @@ final readonly class AssignmentsBatchProcessor
         $assignmentResults = [];
         $assignmentErrors = [];
         $skippedAssignments = 0;
+        $processedAssignments = 0;
+        $timedOutAssignments = 0;
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         foreach ($assignments as $assignment) {
+            $currentAssignmentId = $assignment->assignmentId;
+            $currentSource = $assignment->sourceDisplayName;
+
             try {
                 $scheduleDecision = $this->scheduleDecider->decide($assignment, $now);
                 if (!$scheduleDecision->hasDueWork()) {
                     ++$skippedAssignments;
+                    ++$processedAssignments;
                     $assignmentResults[] = new AssignmentBatchProcessingResult(
                         assignmentId: $assignment->assignmentId,
                         source: $assignment->sourceDisplayName,
@@ -67,11 +79,30 @@ final readonly class AssignmentsBatchProcessor
                         stage: 'idle',
                         skipped: true,
                     );
+                    $this->writeAndSendProgressStatus(
+                        startedAt: $startedAt,
+                        totalAssignments: count($assignments),
+                        processedAssignments: $processedAssignments,
+                        timedOutAssignments: $timedOutAssignments,
+                        currentAssignmentId: $currentAssignmentId,
+                        currentSource: $currentSource,
+                        found: $found,
+                        alreadySeen: $alreadySeen,
+                        queued: $queued,
+                        sent: $sent,
+                        failed: $failed,
+                        skippedAssignments: $skippedAssignments,
+                        httpStatusCodes: $httpStatusCodes,
+                        transportErrors: $transportErrors,
+                        stage: 'idle',
+                        assignmentErrors: $assignmentErrors,
+                        lastError: $assignmentErrors[0]['error'] ?? '',
+                    );
 
                     continue;
                 }
 
-                $result = $this->processor->process($assignment, $scheduleDecision, $limitPerAssignment);
+                $result = $this->processorGuard->process($assignment, $scheduleDecision, $limitPerAssignment);
                 if ($scheduleDecision->listingDue) {
                     $this->scheduleStore->markListingChecked($assignment->assignmentId, $now);
                 }
@@ -108,9 +139,16 @@ final readonly class AssignmentsBatchProcessor
                     stage: $result->stage,
                     error: $result->lastError,
                 );
+                ++$processedAssignments;
             } catch (\Throwable $exception) {
+                if ($exception instanceof AssignmentTimeoutException) {
+                    ++$timedOutAssignments;
+                    ++$failed;
+                    $this->sendTimeoutFailure($exception);
+                }
+
                 ++$transportErrors;
-                $stage = 'listing';
+                $stage = $exception instanceof AssignmentTimeoutException ? $exception->stage : 'listing';
                 $assignmentErrors[] = [
                     'assignmentId' => $assignment->assignmentId,
                     'source' => $assignment->sourceDisplayName,
@@ -123,12 +161,33 @@ final readonly class AssignmentsBatchProcessor
                     alreadySeen: 0,
                     queued: 0,
                     sent: 0,
-                    failed: 0,
+                    failed: $exception instanceof AssignmentTimeoutException ? 1 : 0,
                     transportErrors: 1,
-                    stage: 'listing',
+                    stage: $stage,
                     error: $exception->getMessage(),
                 );
+                ++$processedAssignments;
             }
+
+            $this->writeAndSendProgressStatus(
+                startedAt: $startedAt,
+                totalAssignments: count($assignments),
+                processedAssignments: $processedAssignments,
+                timedOutAssignments: $timedOutAssignments,
+                currentAssignmentId: $currentAssignmentId,
+                currentSource: $currentSource,
+                found: $found,
+                alreadySeen: $alreadySeen,
+                queued: $queued,
+                sent: $sent,
+                failed: $failed,
+                skippedAssignments: $skippedAssignments,
+                httpStatusCodes: $httpStatusCodes,
+                transportErrors: $transportErrors,
+                stage: $stage,
+                assignmentErrors: $assignmentErrors,
+                lastError: $assignmentErrors[0]['error'] ?? '',
+            );
         }
 
         ksort($httpStatusCodes);
@@ -147,6 +206,8 @@ final readonly class AssignmentsBatchProcessor
             httpStatusCodes: $httpStatusCodes,
             transportErrors: $transportErrors,
             stage: count($assignments) === $skippedAssignments && $assignments !== [] ? 'idle' : $stage,
+            processedAssignments: $processedAssignments,
+            timedOutAssignments: $timedOutAssignments,
         );
 
         $this->writeStatus($batchResult, $startedAt);
@@ -160,6 +221,12 @@ final readonly class AssignmentsBatchProcessor
             'mode' => 'main_assignments_batch',
             'durationSeconds' => $this->durationSeconds($startedAt),
             'assignments' => 0,
+            'totalAssignments' => 0,
+            'processedAssignments' => 0,
+            'timedOutAssignments' => 0,
+            'currentAssignmentId' => '',
+            'currentSource' => '',
+            'lastHeartbeatAt' => '',
             'found' => 0,
             'alreadySeen' => 0,
             'queued' => 0,
@@ -176,10 +243,16 @@ final readonly class AssignmentsBatchProcessor
 
     private function writeStatus(AssignmentsBatchProcessingResult $result, float $startedAt): void
     {
-        $this->statusWriter->write([
+        $status = [
             'mode' => 'main_assignments_batch',
             'durationSeconds' => $this->durationSeconds($startedAt),
             'assignments' => $result->assignments,
+            'totalAssignments' => $result->assignments,
+            'processedAssignments' => $result->processedAssignments,
+            'timedOutAssignments' => $result->timedOutAssignments,
+            'currentAssignmentId' => '',
+            'currentSource' => '',
+            'lastHeartbeatAt' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM),
             'found' => $result->found,
             'alreadySeen' => $result->alreadySeen,
             'queued' => $result->queued,
@@ -191,7 +264,99 @@ final readonly class AssignmentsBatchProcessor
             'stage' => $result->stage,
             'assignmentErrors' => $result->assignmentErrors,
             'lastError' => $result->lastError,
-        ]);
+        ];
+
+        $this->statusWriter->write($status);
+        $this->sendHeartbeat($status);
+    }
+
+    /**
+     * @param array<int, int> $httpStatusCodes
+     * @param list<array{assignmentId: string, source: string, error: string}> $assignmentErrors
+     */
+    private function writeAndSendProgressStatus(
+        float $startedAt,
+        int $totalAssignments,
+        int $processedAssignments,
+        int $timedOutAssignments,
+        string $currentAssignmentId,
+        string $currentSource,
+        int $found,
+        int $alreadySeen,
+        int $queued,
+        int $sent,
+        int $failed,
+        int $skippedAssignments,
+        array $httpStatusCodes,
+        int $transportErrors,
+        string $stage,
+        array $assignmentErrors,
+        string $lastError,
+    ): void {
+        ksort($httpStatusCodes);
+        $status = [
+            'mode' => 'main_assignments_batch',
+            'durationSeconds' => $this->durationSeconds($startedAt),
+            'assignments' => $totalAssignments,
+            'totalAssignments' => $totalAssignments,
+            'processedAssignments' => $processedAssignments,
+            'timedOutAssignments' => $timedOutAssignments,
+            'currentAssignmentId' => $currentAssignmentId,
+            'currentSource' => $currentSource,
+            'found' => $found,
+            'alreadySeen' => $alreadySeen,
+            'queued' => $queued,
+            'sent' => $sent,
+            'failed' => $failed,
+            'skippedAssignments' => $skippedAssignments,
+            'httpStatusCodes' => $httpStatusCodes,
+            'transportErrors' => $transportErrors,
+            'stage' => $stage,
+            'assignmentErrors' => $assignmentErrors,
+            'lastError' => $lastError,
+            'lastHeartbeatAt' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM),
+        ];
+
+        $this->statusWriter->write($status);
+        $this->sendHeartbeat($status);
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    private function sendHeartbeat(array $status): void
+    {
+        try {
+            $payload = $this->heartbeatPayloadFactory->create($status);
+            $this->heartbeatSender->send(
+                checkedAt: $payload->checkedAt,
+                status: $payload->status,
+                message: $payload->message,
+                metrics: $payload->metrics,
+            );
+        } catch (\Throwable) {
+            // Progress heartbeat is best-effort: it must not break the batch.
+        }
+    }
+
+    private function sendTimeoutFailure(AssignmentTimeoutException $exception): void
+    {
+        try {
+            $this->failureSender->send(
+                assignmentId: $exception->assignmentId,
+                stage: $exception->stage,
+                message: $exception->getMessage(),
+                context: [
+                    'assignmentId' => $exception->assignmentId,
+                    'source' => $exception->source,
+                    'timeoutSeconds' => $exception->timeoutSeconds,
+                    'stage' => $exception->stage,
+                ],
+                occurredAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            );
+        } catch (\Throwable) {
+            // Failure reporting is diagnostic and must not stop batch processing.
+        }
     }
 
     private function durationSeconds(float $startedAt): int

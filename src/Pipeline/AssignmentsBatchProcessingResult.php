@@ -25,6 +25,8 @@ final readonly class AssignmentsBatchProcessingResult
         public array $httpStatusCodes = [],
         public int $transportErrors = 0,
         public string $stage = 'listing',
+        public int $processedAssignments = 0,
+        public int $timedOutAssignments = 0,
     ) {
     }
 
