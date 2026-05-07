@@ -1,4 +1,4 @@
-.PHONY: build clean console console-list daemon-logs daemon-restart daemon-start daemon-stop diagnostic-clear diagnostic-tail parser-list php production-run status test test-fetch
+.PHONY: build clean console console-list daemon-logs daemon-restart daemon-start daemon-stop diagnostic-clear diagnostic-tail parser-list php production-run self-check status test test-fetch
 
 DAEMON_NAME ?= russiaww-parser-daemon
 interval ?= 30
@@ -42,6 +42,9 @@ php:
 
 production-run:
 	docker compose run --rm php php bin/console parser:production:run-once
+
+self-check:
+	docker compose run --rm php php bin/console parser:self-check
 
 status:
 	docker compose run --rm php php bin/console parser:status:show

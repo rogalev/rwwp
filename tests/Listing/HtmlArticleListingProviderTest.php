@@ -108,7 +108,7 @@ final class HtmlArticleListingProviderTest extends TestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('HTML listing selector matched 0 links: ".missing-link".');
+        $this->expectExceptionMessage('HTML listing selector matched 0 nodes: ".missing-link".');
 
         try {
             iterator_to_array($provider->fetchArticleRefs($source));
@@ -117,6 +117,39 @@ final class HtmlArticleListingProviderTest extends TestCase
             self::assertNotNull($stats);
             self::assertSame('.missing-link', $stats->selector);
             self::assertSame(0, $stats->matchedNodes);
+            self::assertSame(0, $stats->uniqueUrls);
+        }
+    }
+
+    public function testFetchArticleRefsFailsWhenSelectorMatchesNodesWithoutUniqueUrls(): void
+    {
+        $provider = new HtmlArticleListingProvider(
+            new FakeHtmlDocumentFetcher($this->htmlFixture()),
+            new TrackingQueryUrlNormalizer(),
+        );
+
+        $source = new ListingSource(
+            ListingSourceType::HtmlSection,
+            'example',
+            'world',
+            'https://www.example.com/news/world/',
+            [
+                'listing' => [
+                    'linkSelector' => '.news-card',
+                ],
+            ],
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('HTML listing selector matched 5 nodes but produced 0 unique URLs: ".news-card".');
+
+        try {
+            iterator_to_array($provider->fetchArticleRefs($source));
+        } finally {
+            $stats = $provider->lastSelectorStats();
+            self::assertNotNull($stats);
+            self::assertSame('.news-card', $stats->selector);
+            self::assertSame(5, $stats->matchedNodes);
             self::assertSame(0, $stats->uniqueUrls);
         }
     }

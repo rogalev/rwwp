@@ -206,6 +206,39 @@ final class AssignmentListingEnqueueProcessorTest extends TestCase
         ], $diagnostics->contextFor('listing.done')['htmlSelectorStats']);
     }
 
+    public function testReportsHtmlSelectorDiagnosticsWithListingFailure(): void
+    {
+        $failureSender = new ListingEnqueueFailureSender();
+        $diagnostics = new ListingEnqueueDiagnosticLogger();
+        $processor = new AssignmentListingEnqueueProcessor(
+            new ArticleListingProviderRegistry([
+                new ListingEnqueueHtmlProvider(
+                    [],
+                    new HtmlListingSelectorStats('.news-card', matchedNodes: 5, uniqueUrls: 0),
+                    new \RuntimeException('HTML listing selector matched 5 nodes but produced 0 unique URLs: ".news-card".'),
+                ),
+            ]),
+            new ListingEnqueueSeenStore(),
+            new ListingEnqueueQueue(),
+            $failureSender,
+            $diagnostics,
+        );
+
+        $result = $processor->process($this->htmlAssignment(), limit: 10);
+
+        self::assertSame(1, $result->failed);
+        self::assertSame([
+            'selector' => '.news-card',
+            'matchedNodes' => 5,
+            'uniqueUrls' => 0,
+        ], $diagnostics->contextFor('listing.error')['htmlSelectorStats']);
+        self::assertSame([
+            'selector' => '.news-card',
+            'matchedNodes' => 5,
+            'uniqueUrls' => 0,
+        ], $failureSender->failuresWithoutOccurredAt()[0]['context']['htmlSelectorStats']);
+    }
+
     public function testPassesAssignmentRequestTimeoutToListingSource(): void
     {
         $provider = new ListingEnqueueSourceCapturingProvider();
@@ -323,6 +356,7 @@ final readonly class ListingEnqueueHtmlProvider implements ArticleListingProvide
     public function __construct(
         private array $articleRefs,
         private HtmlListingSelectorStats $stats,
+        private ?\Throwable $exception = null,
     ) {
     }
 
@@ -333,6 +367,10 @@ final readonly class ListingEnqueueHtmlProvider implements ArticleListingProvide
 
     public function fetchArticleRefs(ListingSource $source): iterable
     {
+        if ($this->exception !== null) {
+            throw $this->exception;
+        }
+
         return $this->articleRefs;
     }
 

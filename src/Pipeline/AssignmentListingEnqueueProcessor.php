@@ -73,8 +73,9 @@ final readonly class AssignmentListingEnqueueProcessor
                 'assignmentId' => $assignment->assignmentId,
                 'message' => $exception->getMessage(),
                 'exceptionClass' => $exception::class,
+                'htmlSelectorStats' => $provider !== null ? $this->htmlSelectorStats($provider) : null,
             ]);
-            $this->sendFailure($assignment, $exception);
+            $this->sendFailure($assignment, $exception, $provider);
 
             return new AssignmentListingEnqueueResult(
                 found: $found,
@@ -123,7 +124,7 @@ final readonly class AssignmentListingEnqueueProcessor
         };
     }
 
-    private function sendFailure(ParserAssignment $assignment, \Throwable $exception): void
+    private function sendFailure(ParserAssignment $assignment, \Throwable $exception, ?object $provider): void
     {
         try {
             $context = [
@@ -133,6 +134,10 @@ final readonly class AssignmentListingEnqueueProcessor
             $linkSelector = $this->listingLinkSelector($assignment);
             if ($linkSelector !== null) {
                 $context['listingLinkSelector'] = $linkSelector;
+            }
+            $htmlSelectorStats = $provider !== null ? $this->htmlSelectorStats($provider) : null;
+            if ($htmlSelectorStats !== null) {
+                $context['htmlSelectorStats'] = $htmlSelectorStats;
             }
 
             $this->failureSender->send(

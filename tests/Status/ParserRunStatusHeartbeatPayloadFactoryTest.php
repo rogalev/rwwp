@@ -50,7 +50,29 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
             'httpStatusCodes' => ['200' => 3],
             'transportErrors' => 2,
             'stage' => 'raw_article_send',
+            'agentVersion' => '0.1.0',
+            'phpVersion' => PHP_VERSION,
+            'gitCommit' => '',
+            'capabilities' => ['rss_listing', 'html_listing', 'raw_html_delivery'],
         ], $payload->metrics);
+    }
+
+    public function testAddsAgentMetadataFromEnvironment(): void
+    {
+        putenv('PARSER_AGENT_VERSION=1.2.3');
+        putenv('PARSER_AGENT_GIT_COMMIT=abc1234');
+
+        try {
+            $payload = (new ParserRunStatusHeartbeatPayloadFactory())->create([]);
+        } finally {
+            putenv('PARSER_AGENT_VERSION');
+            putenv('PARSER_AGENT_GIT_COMMIT');
+        }
+
+        self::assertSame('1.2.3', $payload->metrics['agentVersion']);
+        self::assertSame(PHP_VERSION, $payload->metrics['phpVersion']);
+        self::assertSame('abc1234', $payload->metrics['gitCommit']);
+        self::assertSame(['rss_listing', 'html_listing', 'raw_html_delivery'], $payload->metrics['capabilities']);
     }
 
     public function testCreatesErrorPayloadFromFailedStatus(): void

@@ -66,16 +66,30 @@ API main-приложения.
 MAIN_API_BASE_URL=http://host.docker.internal:8080
 PARSER_INSTANCE_ID=0196a111-1111-7111-8111-111111111111
 PARSER_API_KEY=parser_api_key
+PARSER_AGENT_VERSION=0.1.0
+PARSER_AGENT_GIT_COMMIT=abc1234
 ```
 
 В production реальные значения задаются через окружение процесса или
 `.env.local` на конкретной машине. `PARSER_API_KEY` нельзя коммитить.
+`PARSER_AGENT_VERSION` и `PARSER_AGENT_GIT_COMMIT` необязательны, но полезны в
+админке main: по heartbeat видно, какая версия агента запущена на конкретной
+машине. Если commit неизвестен, можно не задавать `PARSER_AGENT_GIT_COMMIT`.
 
 Проверить, что parser-agent видит main и получает свои назначения:
 
 ```bash
 make console cmd="parser:main:assignments"
 ```
+
+Перед запуском агента на новой машине полезно выполнить startup self-check:
+
+```bash
+make console cmd="parser:self-check"
+```
+
+Команда проверяет `pcntl_fork`, PDO SQLite, права на runtime-файлы и доступность
+main API. Если хотя бы одна проверка не прошла, команда завершается с ошибкой.
 
 Если назначений нет, сначала проверь в main, что parser instance включен и ему
 назначены источники.
@@ -179,6 +193,13 @@ batch heartbeat best-effort: если main временно недоступен
 - `currentAssignmentId`
 - `currentSource`
 - `lastHeartbeatAt`
+
+В heartbeat дополнительно отправляются диагностические поля агента:
+
+- `agentVersion`
+- `phpVersion`
+- `gitCommit`
+- `capabilities`
 
 Показать последний сохраненный статус запуска:
 

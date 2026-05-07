@@ -70,9 +70,17 @@ final class HtmlArticleListingProvider implements ArticleListingProviderInterfac
             uniqueUrls: \count($seenUrls),
         );
 
-        if ($matchedNodes === 0 || $refs === []) {
+        if ($matchedNodes === 0) {
             throw new \RuntimeException(sprintf(
-                'HTML listing selector matched 0 links: "%s".',
+                'HTML listing selector matched 0 nodes: "%s".',
+                $selector,
+            ));
+        }
+
+        if ($refs === []) {
+            throw new \RuntimeException(sprintf(
+                'HTML listing selector matched %d nodes but produced 0 unique URLs: "%s".',
+                $matchedNodes,
                 $selector,
             ));
         }

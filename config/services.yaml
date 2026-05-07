@@ -107,6 +107,11 @@ services:
         arguments:
             $path: '%parser.run_status_path%'
 
+    App\Command\SelfCheckCommand:
+        arguments:
+            $stateDsn: '%parser.state_dsn%'
+            $runStatusPath: '%parser.run_status_path%'
+
     App\MainApi\MainApiRawArticleClient:
         arguments:
             $baseUrl: '%main_api.base_url%'

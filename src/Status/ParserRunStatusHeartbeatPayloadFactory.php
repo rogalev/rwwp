@@ -6,6 +6,8 @@ namespace App\Status;
 
 final readonly class ParserRunStatusHeartbeatPayloadFactory
 {
+    private const AGENT_VERSION = '0.1.0';
+
     /**
      * @param array<string, mixed> $status
      */
@@ -95,6 +97,10 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
             'httpStatusCodes' => \is_array($status['httpStatusCodes'] ?? null) ? $status['httpStatusCodes'] : [],
             'transportErrors' => $this->intValue($status['transportErrors'] ?? null),
             'stage' => $this->stringValue($status['stage'] ?? null),
+            'agentVersion' => $this->envString('PARSER_AGENT_VERSION', self::AGENT_VERSION),
+            'phpVersion' => PHP_VERSION,
+            'gitCommit' => $this->envString('PARSER_AGENT_GIT_COMMIT', ''),
+            'capabilities' => ['rss_listing', 'html_listing', 'raw_html_delivery'],
         ];
     }
 
@@ -106,6 +112,13 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
     private function stringValue(mixed $value): string
     {
         return \is_string($value) ? $value : '';
+    }
+
+    private function envString(string $name, string $default): string
+    {
+        $value = getenv($name);
+
+        return \is_string($value) && trim($value) !== '' ? trim($value) : $default;
     }
 
     /**
