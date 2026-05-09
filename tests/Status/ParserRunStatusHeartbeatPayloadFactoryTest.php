@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Status;
 
 use App\Status\ParserRunStatusHeartbeatPayloadFactory;
+use App\Status\RuntimeMetricsCollector;
 use PHPUnit\Framework\TestCase;
 
 final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
@@ -73,6 +74,21 @@ final class ParserRunStatusHeartbeatPayloadFactoryTest extends TestCase
         self::assertSame(PHP_VERSION, $payload->metrics['phpVersion']);
         self::assertSame('abc1234', $payload->metrics['gitCommit']);
         self::assertSame(['rss_listing', 'html_listing', 'raw_html_delivery'], $payload->metrics['capabilities']);
+    }
+
+    public function testAddsRuntimeMetricsWhenCollectorIsConfigured(): void
+    {
+        $payload = (new ParserRunStatusHeartbeatPayloadFactory(new RuntimeMetricsCollector(
+            stateDsn: 'sqlite:'.sys_get_temp_dir().'/russiaww-parser-tests/'.bin2hex(random_bytes(8)).'/missing.sqlite',
+            diagnosticLogPath: sys_get_temp_dir().'/missing-parser-diagnostic.ndjson',
+            hostLabel: 'nl3 parser',
+        )))->create([]);
+
+        self::assertSame('nl3 parser', $payload->metrics['hostLabel']);
+        self::assertArrayHasKey('hostname', $payload->metrics);
+        self::assertArrayHasKey('diskTotalBytes', $payload->metrics);
+        self::assertArrayHasKey('memoryTotalBytes', $payload->metrics);
+        self::assertArrayHasKey('pendingQueueSize', $payload->metrics);
     }
 
     public function testCreatesErrorPayloadFromFailedStatus(): void

@@ -57,6 +57,10 @@ final class HeartbeatSendCommandTest extends TestCase
             'httpStatusCodes' => ['200' => 3, '403' => 1],
             'transportErrors' => 2,
             'stage' => 'raw_article_send',
+            'agentVersion' => '0.1.0',
+            'phpVersion' => PHP_VERSION,
+            'gitCommit' => '',
+            'capabilities' => ['rss_listing', 'html_listing', 'raw_html_delivery'],
         ], $sender->metrics);
         self::assertStringContainsString('Heartbeat отправлен в main.', $commandTester->getDisplay());
     }

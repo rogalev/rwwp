@@ -229,6 +229,33 @@ batch heartbeat best-effort: если main временно недоступен
 - `gitCommit`
 - `capabilities`
 
+Если агент настроен через текущий DI-контейнер, heartbeat также содержит
+runtime/VPS-метрики. Они собираются best-effort: если конкретный показатель
+недоступен на текущей ОС или внутри контейнера, поле уйдет как `null`, а
+production-run не должен падать из-за диагностики.
+
+- `hostLabel`
+- `hostname`
+- `uptimeSeconds`
+- `diskTotalBytes`
+- `diskUsedBytes`
+- `diskFreeBytes`
+- `memoryTotalBytes`
+- `memoryUsedBytes`
+- `memoryAvailableBytes`
+- `loadAverage1m`
+- `loadAverage5m`
+- `loadAverage15m`
+- `sqliteStateSizeBytes`
+- `diagnosticLogSizeBytes`
+- `pendingQueueSize`
+- `failedQueueSize`
+- `seenArticlesCount`
+- `oldestPendingAgeSeconds`
+
+`PARSER_HOST_LABEL` можно задать на VPS вручную, чтобы в main видеть понятное
+имя машины, не зависящее от системного hostname.
+
 Показать последний сохраненный статус запуска:
 
 ```bash

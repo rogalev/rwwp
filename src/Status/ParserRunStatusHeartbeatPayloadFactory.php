@@ -8,6 +8,11 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
 {
     private const AGENT_VERSION = '0.1.0';
 
+    public function __construct(
+        private ?RuntimeMetricsCollector $runtimeMetricsCollector = null,
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $status
      */
@@ -81,7 +86,7 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
      */
     private function metrics(array $status): array
     {
-        return [
+        return array_merge([
             'durationSeconds' => $this->intValue($status['durationSeconds'] ?? null),
             'processedAssignments' => $this->intValue($status['processedAssignments'] ?? null),
             'totalAssignments' => $this->intValue($status['totalAssignments'] ?? ($status['assignments'] ?? null)),
@@ -101,7 +106,7 @@ final readonly class ParserRunStatusHeartbeatPayloadFactory
             'phpVersion' => PHP_VERSION,
             'gitCommit' => $this->envString('PARSER_AGENT_GIT_COMMIT', ''),
             'capabilities' => ['rss_listing', 'html_listing', 'raw_html_delivery'],
-        ];
+        ], $this->runtimeMetricsCollector?->collect() ?? []);
     }
 
     private function intValue(mixed $value): int

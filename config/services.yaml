@@ -18,6 +18,7 @@ parameters:
     parser.run_status_path: '%env(resolve:PARSER_RUN_STATUS_PATH)%'
     parser.diagnostic_log_enabled: '%env(bool:PARSER_DIAGNOSTIC_LOG_ENABLED)%'
     parser.diagnostic_log_path: '%env(resolve:PARSER_DIAGNOSTIC_LOG_PATH)%'
+    parser.host_label: '%env(PARSER_HOST_LABEL)%'
     parser.pending_retry_delay_seconds: '%env(int:PARSER_PENDING_RETRY_DELAY_SECONDS)%'
     parser.pending_max_attempts: '%env(int:PARSER_PENDING_MAX_ATTEMPTS)%'
     parser.assignment_timeout_seconds: '%env(int:PARSER_ASSIGNMENT_TIMEOUT_SECONDS)%'
@@ -106,6 +107,12 @@ services:
     App\Status\ParserRunStatusReader:
         arguments:
             $path: '%parser.run_status_path%'
+
+    App\Status\RuntimeMetricsCollector:
+        arguments:
+            $stateDsn: '%parser.state_dsn%'
+            $diagnosticLogPath: '%parser.diagnostic_log_path%'
+            $hostLabel: '%parser.host_label%'
 
     App\Command\SelfCheckCommand:
         arguments:
