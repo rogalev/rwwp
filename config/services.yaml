@@ -157,6 +157,12 @@ services:
     App\MainApi\MainApiParserFailureSenderInterface:
         alias: App\MainApi\MainApiParserFailureClient
 
+    App\MainApi\MainApiImageDownloadTaskClient:
+        arguments:
+            $baseUrl: '%main_api.base_url%'
+            $parserInstanceId: '%main_api.parser_instance_id%'
+            $apiKey: '%main_api.parser_api_key%'
+
     App\Listing\ArticleListingProviderRegistry:
         arguments:
             $providers: !tagged_iterator app.article_listing_provider
