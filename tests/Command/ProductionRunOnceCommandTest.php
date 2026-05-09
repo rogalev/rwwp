@@ -71,6 +71,7 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertSame(1, $assignmentRunsSender->items[0]->sent);
         self::assertFalse($assignmentRunsSender->items[0]->skipped);
         self::assertSame([200 => 1], $assignmentRunsSender->items[0]->httpStatusCodes);
+        self::assertGreaterThanOrEqual(0, $assignmentRunsSender->items[0]->durationMs);
         self::assertStringContainsString('Статистика назначений отправлена в main.', $commandTester->getDisplay());
         self::assertStringContainsString('Heartbeat отправлен в main.', $commandTester->getDisplay());
     }
