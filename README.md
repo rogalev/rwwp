@@ -100,6 +100,24 @@ main API. Если хотя бы одна проверка не прошла, к
 make console cmd="parser:main:raw-article:send 0196a222-2222-7222-8222-222222222222 https://example.com/news/1 /app/var/tmp/article.html --status=200"
 ```
 
+### Скачивание изображений
+
+Main после extraction может создать задачи скачивания изображений. Parser-agent
+забирает эти задачи, скачивает файлы со своего IP и отправляет результат обратно
+в main:
+
+```bash
+make console cmd="parser:image-download:run-once --limit=10"
+```
+
+Production-команда `parser:production:run-once` выполняет оба блока за один
+цикл:
+
+- обработку assignments и отправку raw articles;
+- скачивание изображений по задачам main.
+
+Лимит изображений на цикл задается опцией `--image-limit`.
+
 Обработать одно назначение через актуальный scheduled pipeline:
 
 ```bash

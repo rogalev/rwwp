@@ -11,7 +11,7 @@ clean:
 	docker compose down --remove-orphans
 
 daemon-start:
-	docker compose run -d --name $(DAEMON_NAME) php sh -lc 'while true; do php bin/console parser:production:run-once --limit-per-assignment=$(limit); sleep $(interval); done'
+	docker compose run -d --name $(DAEMON_NAME) php sh -lc 'while true; do php bin/console parser:production:run-once --limit-per-assignment=$(limit) --image-limit=10; sleep $(interval); done'
 
 daemon-logs:
 	docker logs -f $(DAEMON_NAME)

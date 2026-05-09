@@ -7,6 +7,8 @@ namespace App\Tests\Command;
 use App\Command\ProductionRunOnceCommand;
 use App\Http\DocumentFetcherInterface;
 use App\Http\FetchedDocument;
+use App\Image\ImageDownloadBatchResult;
+use App\Image\ImageDownloadBatchProcessorInterface;
 use App\Listing\ArticleListingProviderInterface;
 use App\Listing\ArticleListingProviderRegistry;
 use App\Listing\ExternalArticleRef;
@@ -45,14 +47,16 @@ final class ProductionRunOnceCommandTest extends TestCase
         $statusPath = $this->temporaryStatusPath();
         $heartbeatSender = new ProductionRecordingHeartbeatSender();
         $assignmentRunsSender = new ProductionRecordingAssignmentRunsSender();
+        $imageProcessor = new ProductionImageDownloadBatchProcessor(new ImageDownloadBatchResult(1, 1, 0));
         $commandTester = new CommandTester($this->command(
             assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
             statusPath: $statusPath,
             heartbeatSender: $heartbeatSender,
             assignmentRunsSender: $assignmentRunsSender,
+            imageDownloadBatchProcessor: $imageProcessor,
         ));
 
-        $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
+        $exitCode = $commandTester->execute(['--limit-per-assignment' => '1', '--image-limit' => '7']);
 
         self::assertSame(Command::SUCCESS, $exitCode);
         self::assertSame('ok', $heartbeatSender->status);
@@ -72,6 +76,8 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertFalse($assignmentRunsSender->items[0]->skipped);
         self::assertSame([200 => 1], $assignmentRunsSender->items[0]->httpStatusCodes);
         self::assertStringContainsString('Статистика назначений отправлена в main.', $commandTester->getDisplay());
+        self::assertStringContainsString('Image downloads', $commandTester->getDisplay());
+        self::assertSame(7, $imageProcessor->limit);
         self::assertStringContainsString('Heartbeat отправлен в main.', $commandTester->getDisplay());
     }
 
@@ -127,6 +133,26 @@ final class ProductionRunOnceCommandTest extends TestCase
         self::assertStringContainsString('Assignment stats rejected.', $commandTester->getDisplay());
     }
 
+    public function testReturnsFailureWhenImageDownloadHasErrorsButStillSendsHeartbeat(): void
+    {
+        $statusPath = $this->temporaryStatusPath();
+        $heartbeatSender = new ProductionRecordingHeartbeatSender();
+        $commandTester = new CommandTester($this->command(
+            assignments: [$this->assignment('0196a222-2222-7222-8222-222222222222', 'BBC')],
+            statusPath: $statusPath,
+            heartbeatSender: $heartbeatSender,
+            assignmentRunsSender: new ProductionRecordingAssignmentRunsSender(),
+            imageDownloadBatchProcessor: new ProductionImageDownloadBatchProcessor(new ImageDownloadBatchResult(2, 1, 1)),
+        ));
+
+        $exitCode = $commandTester->execute(['--limit-per-assignment' => '1']);
+
+        self::assertSame(Command::FAILURE, $exitCode);
+        self::assertSame('ok', $heartbeatSender->status);
+        self::assertStringContainsString('Image downloads', $commandTester->getDisplay());
+        self::assertStringContainsString('Failed', $commandTester->getDisplay());
+    }
+
     /**
      * @param list<ParserAssignment> $assignments
      */
@@ -136,6 +162,7 @@ final class ProductionRunOnceCommandTest extends TestCase
         MainApiHeartbeatSenderInterface $heartbeatSender,
         MainApiAssignmentRunsSenderInterface $assignmentRunsSender,
         ?string $failingAssignmentId = null,
+        ?ImageDownloadBatchProcessorInterface $imageDownloadBatchProcessor = null,
     ): ProductionRunOnceCommand {
         $scheduleStore = new InMemoryAssignmentScheduleStore();
         $queue = new InMemoryPendingArticleQueue();
@@ -173,6 +200,7 @@ final class ProductionRunOnceCommandTest extends TestCase
             new ParserRunStatusHeartbeatPayloadFactory(),
             $heartbeatSender,
             $assignmentRunsSender,
+            $imageDownloadBatchProcessor ?? new ProductionImageDownloadBatchProcessor(new ImageDownloadBatchResult(0, 0, 0)),
         );
     }
 
@@ -368,5 +396,22 @@ final readonly class ProductionFailingHeartbeatSender implements MainApiHeartbea
     public function send(\DateTimeImmutable $checkedAt, string $status, string $message, array $metrics): void
     {
         throw $this->exception;
+    }
+}
+
+final class ProductionImageDownloadBatchProcessor implements ImageDownloadBatchProcessorInterface
+{
+    public int $limit = 0;
+
+    public function __construct(
+        private readonly ImageDownloadBatchResult $result,
+    ) {
+    }
+
+    public function process(int $limit): ImageDownloadBatchResult
+    {
+        $this->limit = $limit;
+
+        return $this->result;
     }
 }
