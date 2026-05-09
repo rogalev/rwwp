@@ -110,13 +110,20 @@ Main после extraction может создать задачи скачива
 make console cmd="parser:image-download:run-once --limit=10"
 ```
 
-Production-команда `parser:production:run-once` выполняет оба блока за один
-цикл:
+Скачивание изображений запускается отдельным процессом, чтобы тяжелые CDN/медиа
+запросы не замедляли получение raw articles. Локальный daemon:
 
-- обработку assignments и отправку raw articles;
-- скачивание изображений по задачам main.
+```bash
+make image-daemon-start
+```
 
-Лимит изображений на цикл задается опцией `--image-limit`.
+Управление image daemon:
+
+```bash
+make image-daemon-logs
+make image-daemon-stop
+make image-daemon-restart
+```
 
 Обработать одно назначение через актуальный scheduled pipeline:
 
@@ -141,6 +148,9 @@ make console cmd="parser:run-once --limit-per-assignment=1"
 ```bash
 make daemon-start
 ```
+
+Этот daemon обрабатывает assignments и raw articles. Изображения обрабатываются
+отдельным `image-daemon-start`.
 
 Управление локальным демоном:
 

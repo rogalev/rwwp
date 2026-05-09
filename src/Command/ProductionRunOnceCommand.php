@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\MainApi\MainApiHeartbeatSenderInterface;
-use App\Image\ImageDownloadBatchProcessorInterface;
 use App\MainApi\AssignmentRunStats;
 use App\MainApi\MainApiAssignmentRunsSenderInterface;
 use App\Pipeline\AssignmentsBatchProcessingResult;
@@ -31,7 +30,6 @@ final class ProductionRunOnceCommand extends Command
         private readonly ParserRunStatusHeartbeatPayloadFactory $payloadFactory,
         private readonly MainApiHeartbeatSenderInterface $heartbeatSender,
         private readonly MainApiAssignmentRunsSenderInterface $assignmentRunsSender,
-        private readonly ImageDownloadBatchProcessorInterface $imageDownloadBatchProcessor,
     ) {
         parent::__construct();
     }
@@ -44,13 +42,6 @@ final class ProductionRunOnceCommand extends Command
             InputOption::VALUE_REQUIRED,
             'Максимальное число новых статей на одно назначение за запуск.',
             '1',
-        );
-        $this->addOption(
-            'image-limit',
-            null,
-            InputOption::VALUE_REQUIRED,
-            'Максимальное число изображений за запуск production-цикла.',
-            '10',
         );
     }
 
@@ -65,11 +56,6 @@ final class ProductionRunOnceCommand extends Command
             $this->showResult($io, $result);
             $this->sendAssignmentRuns($result);
             $io->success('Статистика назначений отправлена в main.');
-            $imageResult = $this->imageDownloadBatchProcessor->process($this->readImageLimit($input));
-            $this->showImageResult($io, $imageResult);
-            if ($imageResult->hasErrors()) {
-                $hasProductionError = true;
-            }
         } catch (\Throwable $exception) {
             $hasProductionError = true;
             $io->error($exception->getMessage());
@@ -97,16 +83,6 @@ final class ProductionRunOnceCommand extends Command
         return $limit;
     }
 
-    private function readImageLimit(InputInterface $input): int
-    {
-        $limit = filter_var($input->getOption('image-limit'), FILTER_VALIDATE_INT);
-        if (!\is_int($limit) || $limit <= 0) {
-            throw new \InvalidArgumentException('image-limit must be greater than zero.');
-        }
-
-        return min(50, $limit);
-    }
-
     private function showResult(SymfonyStyle $io, AssignmentsBatchProcessingResult $result): void
     {
         $io->definitionList(
@@ -117,16 +93,6 @@ final class ProductionRunOnceCommand extends Command
             ['Sent' => (string) $result->sent],
             ['Failed' => (string) $result->failed],
             ['Last error' => $result->lastError],
-        );
-    }
-
-    private function showImageResult(SymfonyStyle $io, \App\Image\ImageDownloadBatchResult $result): void
-    {
-        $io->section('Image downloads');
-        $io->definitionList(
-            ['Tasks' => (string) $result->tasks],
-            ['Downloaded' => (string) $result->downloaded],
-            ['Failed' => (string) $result->failed],
         );
     }
 
