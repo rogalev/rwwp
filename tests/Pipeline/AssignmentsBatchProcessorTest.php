@@ -58,6 +58,8 @@ final class AssignmentsBatchProcessorTest extends TestCase
         self::assertSame(1, $result->timedOutAssignments);
         self::assertSame(1, $result->failed);
         self::assertSame(1, $result->sent);
+        self::assertGreaterThanOrEqual(0, $result->assignmentResults[0]->durationMs);
+        self::assertGreaterThanOrEqual(0, $result->assignmentResults[1]->durationMs);
         self::assertSame('Assignment "assignment-timeout" timed out after 120 seconds.', $result->lastError);
 
         self::assertCount(3, $heartbeatSender->payloads);
@@ -122,6 +124,35 @@ final class AssignmentsBatchProcessorTest extends TestCase
         self::assertFalse($result->hasErrors());
         self::assertSame(2, $heartbeatSender->attempts);
         self::assertSame(1, $this->readStatus($statusPath)['processedAssignments']);
+    }
+
+    public function testAssignmentResultContainsMeasuredDuration(): void
+    {
+        $statusPath = $this->temporaryStatusPath();
+        $guard = new BatchProcessorGuard(
+            [
+                'assignment-ok' => new ScheduledAssignmentProcessingResult(
+                    found: 1,
+                    alreadySeen: 0,
+                    queued: 1,
+                    sent: 1,
+                    failed: 0,
+                    httpStatusCodes: [200 => 1],
+                    stage: 'raw_article_send',
+                ),
+            ],
+            delayMicroseconds: 20_000,
+        );
+
+        $result = $this->processor(
+            [$this->assignment('assignment-ok', 'Working source')],
+            $guard,
+            $statusPath,
+            new BatchProcessorHeartbeatSender(),
+            new BatchProcessorFailureSender(),
+        )->process(limitPerAssignment: 1);
+
+        self::assertGreaterThanOrEqual(10, $result->assignmentResults[0]->durationMs);
     }
 
     /**
@@ -212,6 +243,7 @@ final class BatchProcessorGuard implements AssignmentProcessorGuardInterface
      */
     public function __construct(
         private readonly array $results,
+        private readonly int $delayMicroseconds = 0,
     ) {
     }
 
@@ -221,6 +253,9 @@ final class BatchProcessorGuard implements AssignmentProcessorGuardInterface
         int $limit,
     ): ScheduledAssignmentProcessingResult {
         $this->processedAssignmentIds[] = $assignment->assignmentId;
+        if ($this->delayMicroseconds > 0) {
+            usleep($this->delayMicroseconds);
+        }
         $result = $this->results[$assignment->assignmentId] ?? null;
 
         if ($result instanceof \Throwable) {

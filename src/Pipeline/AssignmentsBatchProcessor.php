@@ -60,6 +60,7 @@ final readonly class AssignmentsBatchProcessor
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         foreach ($assignments as $assignment) {
+            $assignmentStartedAt = microtime(true);
             $currentAssignmentId = $assignment->assignmentId;
             $currentSource = $assignment->sourceDisplayName;
 
@@ -78,6 +79,7 @@ final readonly class AssignmentsBatchProcessor
                         failed: 0,
                         stage: 'idle',
                         skipped: true,
+                        durationMs: $this->durationMs($assignmentStartedAt),
                     );
                     $this->writeAndSendProgressStatus(
                         startedAt: $startedAt,
@@ -138,6 +140,7 @@ final readonly class AssignmentsBatchProcessor
                     transportErrors: $result->transportErrors,
                     stage: $result->stage,
                     error: $result->lastError,
+                    durationMs: $this->durationMs($assignmentStartedAt),
                 );
                 ++$processedAssignments;
             } catch (\Throwable $exception) {
@@ -165,6 +168,7 @@ final readonly class AssignmentsBatchProcessor
                     transportErrors: 1,
                     stage: $stage,
                     error: $exception->getMessage(),
+                    durationMs: $this->durationMs($assignmentStartedAt),
                 );
                 ++$processedAssignments;
             }
@@ -362,6 +366,11 @@ final readonly class AssignmentsBatchProcessor
     private function durationSeconds(float $startedAt): int
     {
         return max(0, (int) round(microtime(true) - $startedAt));
+    }
+
+    private function durationMs(float $startedAt): int
+    {
+        return max(0, (int) round((microtime(true) - $startedAt) * 1000));
     }
 
     /**

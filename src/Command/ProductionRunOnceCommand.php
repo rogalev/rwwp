@@ -125,7 +125,7 @@ final class ProductionRunOnceCommand extends Command
                     skipped: $assignmentResult->skipped,
                     httpStatusCodes: $assignmentResult->httpStatusCodes,
                     transportErrors: $assignmentResult->transportErrors,
-                    durationMs: 0,
+                    durationMs: $assignmentResult->durationMs,
                     lastError: $assignmentResult->error,
                 ),
                 $result->assignmentResults,

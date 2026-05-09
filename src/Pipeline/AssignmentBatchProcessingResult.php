@@ -22,6 +22,10 @@ final readonly class AssignmentBatchProcessingResult
         public string $stage = 'idle',
         public string $error = '',
         public bool $skipped = false,
+        public int $durationMs = 0,
     ) {
+        if ($this->durationMs < 0) {
+            throw new \InvalidArgumentException('durationMs must be greater than or equal to zero.');
+        }
     }
 }
