@@ -1,0 +1,20 @@
+[Unit]
+Description=RussiaWW parser-agent image download run
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=parser
+Group=parser
+WorkingDirectory=/opt/russiaww-parser/current
+Environment=APP_ENV=prod
+Environment=APP_DEBUG=0
+EnvironmentFile=-/opt/russiaww-parser/shared/.env.local
+ExecStart=/usr/bin/php8.4 /opt/russiaww-parser/current/bin/console parser:image-download:run-once --limit=10 --no-interaction
+Nice=8
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

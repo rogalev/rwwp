@@ -1,0 +1,11 @@
+[Unit]
+Description=Run RussiaWW parser-agent image downloader every 2 minutes
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=2m
+AccuracySec=10s
+Unit=russiaww-parser-image-download.service
+
+[Install]
+WantedBy=timers.target
