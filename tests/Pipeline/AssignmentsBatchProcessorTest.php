@@ -62,12 +62,13 @@ final class AssignmentsBatchProcessorTest extends TestCase
         self::assertGreaterThanOrEqual(0, $result->assignmentResults[1]->durationMs);
         self::assertSame('Assignment "assignment-timeout" timed out after 120 seconds.', $result->lastError);
 
-        self::assertCount(3, $heartbeatSender->payloads);
+        self::assertCount(2, $heartbeatSender->payloads);
         self::assertSame(1, $heartbeatSender->payloads[0]['metrics']['processedAssignments']);
         self::assertSame(1, $heartbeatSender->payloads[0]['metrics']['timedOutAssignments']);
         self::assertSame('assignment-timeout', $heartbeatSender->payloads[0]['metrics']['currentAssignmentId']);
         self::assertSame(2, $heartbeatSender->payloads[1]['metrics']['processedAssignments']);
-        self::assertSame('assignment-ok', $heartbeatSender->payloads[1]['metrics']['currentAssignmentId']);
+        self::assertSame('', $heartbeatSender->payloads[1]['metrics']['currentAssignmentId']);
+        self::assertSame(1, $heartbeatSender->payloads[1]['metrics']['acceptedRawArticles']);
 
         self::assertSame([
             [

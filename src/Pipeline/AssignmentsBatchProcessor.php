@@ -23,7 +23,11 @@ final readonly class AssignmentsBatchProcessor
         private ParserRunStatusHeartbeatPayloadFactory $heartbeatPayloadFactory,
         private MainApiHeartbeatSenderInterface $heartbeatSender,
         private MainApiParserFailureSenderInterface $failureSender,
+        private int $progressHeartbeatMinIntervalSeconds = 10,
     ) {
+        if ($this->progressHeartbeatMinIntervalSeconds < 0) {
+            throw new \InvalidArgumentException('progressHeartbeatMinIntervalSeconds must be greater than or equal to zero.');
+        }
     }
 
     public function process(int $limitPerAssignment): AssignmentsBatchProcessingResult
@@ -58,6 +62,8 @@ final readonly class AssignmentsBatchProcessor
         $processedAssignments = 0;
         $timedOutAssignments = 0;
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $lastProgressHeartbeatSentAt = null;
+        $lastHeartbeatAt = '';
 
         foreach ($assignments as $assignment) {
             $assignmentStartedAt = microtime(true);
@@ -81,7 +87,7 @@ final readonly class AssignmentsBatchProcessor
                         skipped: true,
                         durationMs: $this->durationMs($assignmentStartedAt),
                     );
-                    $this->writeAndSendProgressStatus(
+                    $this->writeAndMaybeSendProgressStatus(
                         startedAt: $startedAt,
                         totalAssignments: count($assignments),
                         processedAssignments: $processedAssignments,
@@ -99,6 +105,8 @@ final readonly class AssignmentsBatchProcessor
                         stage: 'idle',
                         assignmentErrors: $assignmentErrors,
                         lastError: $assignmentErrors[0]['error'] ?? '',
+                        lastProgressHeartbeatSentAt: $lastProgressHeartbeatSentAt,
+                        lastHeartbeatAt: $lastHeartbeatAt,
                     );
 
                     continue;
@@ -173,7 +181,7 @@ final readonly class AssignmentsBatchProcessor
                 ++$processedAssignments;
             }
 
-            $this->writeAndSendProgressStatus(
+            $this->writeAndMaybeSendProgressStatus(
                 startedAt: $startedAt,
                 totalAssignments: count($assignments),
                 processedAssignments: $processedAssignments,
@@ -191,6 +199,8 @@ final readonly class AssignmentsBatchProcessor
                 stage: $stage,
                 assignmentErrors: $assignmentErrors,
                 lastError: $assignmentErrors[0]['error'] ?? '',
+                lastProgressHeartbeatSentAt: $lastProgressHeartbeatSentAt,
+                lastHeartbeatAt: $lastHeartbeatAt,
             );
         }
 
@@ -278,7 +288,7 @@ final readonly class AssignmentsBatchProcessor
      * @param array<int, int> $httpStatusCodes
      * @param list<array{assignmentId: string, source: string, error: string}> $assignmentErrors
      */
-    private function writeAndSendProgressStatus(
+    private function writeAndMaybeSendProgressStatus(
         float $startedAt,
         int $totalAssignments,
         int $processedAssignments,
@@ -296,6 +306,8 @@ final readonly class AssignmentsBatchProcessor
         string $stage,
         array $assignmentErrors,
         string $lastError,
+        ?float &$lastProgressHeartbeatSentAt,
+        string &$lastHeartbeatAt,
     ): void {
         ksort($httpStatusCodes);
         $status = [
@@ -318,11 +330,20 @@ final readonly class AssignmentsBatchProcessor
             'stage' => $stage,
             'assignmentErrors' => $assignmentErrors,
             'lastError' => $lastError,
-            'lastHeartbeatAt' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM),
+            'lastHeartbeatAt' => $lastHeartbeatAt,
         ];
 
+        $shouldSendHeartbeat = $this->shouldSendProgressHeartbeat($lastProgressHeartbeatSentAt);
+        if ($shouldSendHeartbeat) {
+            $lastProgressHeartbeatSentAt = microtime(true);
+            $lastHeartbeatAt = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM);
+            $status['lastHeartbeatAt'] = $lastHeartbeatAt;
+        }
+
         $this->statusWriter->write($status);
-        $this->sendHeartbeat($status);
+        if ($shouldSendHeartbeat) {
+            $this->sendHeartbeat($status);
+        }
     }
 
     /**
@@ -341,6 +362,19 @@ final readonly class AssignmentsBatchProcessor
         } catch (\Throwable) {
             // Progress heartbeat is best-effort: it must not break the batch.
         }
+    }
+
+    private function shouldSendProgressHeartbeat(?float $lastProgressHeartbeatSentAt): bool
+    {
+        if ($this->progressHeartbeatMinIntervalSeconds === 0) {
+            return true;
+        }
+
+        if ($lastProgressHeartbeatSentAt === null) {
+            return true;
+        }
+
+        return microtime(true) - $lastProgressHeartbeatSentAt >= $this->progressHeartbeatMinIntervalSeconds;
     }
 
     private function sendTimeoutFailure(AssignmentTimeoutException $exception): void

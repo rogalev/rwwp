@@ -22,6 +22,7 @@ parameters:
     parser.pending_retry_delay_seconds: '%env(int:PARSER_PENDING_RETRY_DELAY_SECONDS)%'
     parser.pending_max_attempts: '%env(int:PARSER_PENDING_MAX_ATTEMPTS)%'
     parser.assignment_timeout_seconds: '%env(int:PARSER_ASSIGNMENT_TIMEOUT_SECONDS)%'
+    parser.progress_heartbeat_min_interval_seconds: '%env(int:PARSER_PROGRESS_HEARTBEAT_MIN_INTERVAL_SECONDS)%'
     main_api.base_url: '%env(resolve:MAIN_API_BASE_URL)%'
     main_api.parser_instance_id: '%env(resolve:PARSER_INSTANCE_ID)%'
     main_api.parser_api_key: '%env(resolve:PARSER_API_KEY)%'
@@ -77,6 +78,10 @@ services:
     App\Pipeline\PcntlAssignmentProcessorGuard:
         arguments:
             $timeoutSeconds: '%parser.assignment_timeout_seconds%'
+
+    App\Pipeline\AssignmentsBatchProcessor:
+        arguments:
+            $progressHeartbeatMinIntervalSeconds: '%parser.progress_heartbeat_min_interval_seconds%'
 
     App\Http\DocumentFetcherInterface:
         alias: App\Http\SymfonyHttpDocumentFetcher

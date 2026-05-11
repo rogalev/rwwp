@@ -190,6 +190,7 @@ Timeout одного assignment настраивается отдельно:
 
 ```dotenv
 PARSER_ASSIGNMENT_TIMEOUT_SECONDS=120
+PARSER_PROGRESS_HEARTBEAT_MIN_INTERVAL_SECONDS=10
 ```
 
 Этот timeout защищает весь batch от зависшего assignment. В production используется
@@ -199,11 +200,13 @@ PARSER_ASSIGNMENT_TIMEOUT_SECONDS=120
 Если timeout сработал, assignment считается ошибочным, ошибка попадает в status
 и best-effort отправляется в `main` как parser failure.
 
-Heartbeat теперь отправляется не только в конце production-команды, но и по ходу
-batch после каждого assignment, а также после финальной записи status. Эти
-batch heartbeat best-effort: если main временно недоступен, batch продолжает
-работу. Финальный heartbeat в `parser:production:run-once` сохраняет прежнее
-строгое поведение команды.
+Heartbeat отправляется не только в конце production-команды, но и по ходу
+batch. Progress heartbeat ограничен интервалом
+`PARSER_PROGRESS_HEARTBEAT_MIN_INTERVAL_SECONDS`, чтобы большое количество
+assignments не забивало parser API. Локальный status при этом обновляется после
+каждого assignment. Эти batch heartbeat best-effort: если main временно
+недоступен, batch продолжает работу. Финальный heartbeat в
+`parser:production:run-once` сохраняет прежнее строгое поведение команды.
 
 Смысл статусов heartbeat:
 
