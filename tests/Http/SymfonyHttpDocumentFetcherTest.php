@@ -43,6 +43,21 @@ final class SymfonyHttpDocumentFetcherTest extends TestCase
         self::assertSame('Article HTML', $document->content);
     }
 
+    public function testFetchRetriesTooManyRequestsWithRetryAfterHeader(): void
+    {
+        $firstResponse = new MockResponse('Too many requests', [
+            'http_code' => 429,
+            'response_headers' => ['retry-after: 0'],
+        ]);
+        $secondResponse = new MockResponse('Article HTML', ['http_code' => 200]);
+        $fetcher = $this->fetcher(new MockHttpClient([$firstResponse, $secondResponse]));
+
+        $document = $fetcher->fetch('https://example.com/news/42');
+
+        self::assertSame(200, $document->statusCode);
+        self::assertSame('Article HTML', $document->content);
+    }
+
     public function testFetchRetriesTransportErrorAndReturnsSuccessfulDocument(): void
     {
         $attempt = 0;

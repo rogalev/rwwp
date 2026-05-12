@@ -51,6 +51,9 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
                 if (!$this->shouldRetryStatus($statusCode) || $attempt === $this->maxAttempts()) {
                     throw DocumentFetchException::forUnexpectedStatus($url, $statusCode);
                 }
+
+                $this->sleepBeforeRetry($response);
+                continue;
             } catch (TransportExceptionInterface $exception) {
                 $lastTransportException = $exception;
 
@@ -116,13 +119,39 @@ final readonly class SymfonyHttpDocumentFetcher implements DocumentFetcherInterf
         return $statusCode === 429 || ($statusCode >= 500 && $statusCode <= 599);
     }
 
-    private function sleepBeforeRetry(): void
+    private function sleepBeforeRetry(?ResponseInterface $response = null): void
     {
-        if ($this->retryDelayMs <= 0) {
+        $delayMs = max($this->retryDelayMs, $this->retryAfterDelayMs($response));
+        if ($delayMs <= 0) {
             return;
         }
 
-        usleep($this->retryDelayMs * 1000);
+        usleep($delayMs * 1000);
+    }
+
+    private function retryAfterDelayMs(?ResponseInterface $response): int
+    {
+        if ($response === null) {
+            return 0;
+        }
+
+        $headers = $response->getHeaders(false);
+        $retryAfter = $headers['retry-after'][0] ?? null;
+        if (!\is_string($retryAfter) || trim($retryAfter) === '') {
+            return 0;
+        }
+
+        $retryAfter = trim($retryAfter);
+        if (ctype_digit($retryAfter)) {
+            return min((int) $retryAfter * 1000, 300_000);
+        }
+
+        $retryAt = strtotime($retryAfter);
+        if ($retryAt === false) {
+            return 0;
+        }
+
+        return min(max(0, $retryAt - time()) * 1000, 300_000);
     }
 
     private function sleepBeforeRequest(): void
