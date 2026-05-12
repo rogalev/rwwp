@@ -61,10 +61,10 @@ final class MainRawArticleSendCommand extends Command
         }
 
         $io->definitionList(
-            ['ID' => $result->id],
-            ['Created' => $result->created ? 'yes' : 'no'],
+            ['Job ID' => $result->jobId],
+            ['Accepted' => $result->accepted ? 'yes' : 'no'],
             ['External URL' => $result->externalUrl],
-            ['Content hash' => $result->contentHash],
+            ['Status' => $result->status],
         );
 
         return Command::SUCCESS;

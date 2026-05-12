@@ -327,10 +327,10 @@ final class ArticleFetchRawArticleSender implements MainApiRawArticleSenderInter
         ];
 
         return new SendRawArticleResult(
-            id: '0196a333-3333-7333-8333-333333333333',
-            created: true,
+            jobId: '0196a333-3333-7333-8333-333333333333',
+            accepted: true,
             externalUrl: $externalUrl,
-            contentHash: 'content-hash',
+            status: 'pending',
         );
     }
 }

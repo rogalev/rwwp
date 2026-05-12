@@ -7,10 +7,10 @@ namespace App\MainApi;
 final readonly class SendRawArticleResult
 {
     public function __construct(
-        public string $id,
-        public bool $created,
+        public string $jobId,
+        public bool $accepted,
         public string $externalUrl,
-        public string $contentHash,
+        public string $status,
     ) {
     }
 }

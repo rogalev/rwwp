@@ -287,7 +287,7 @@ final class ScheduledRawArticleSender implements MainApiRawArticleSenderInterfac
             'externalUrl' => $externalUrl,
         ];
 
-        return new SendRawArticleResult('raw-article-1', true, $externalUrl, 'hash');
+        return new SendRawArticleResult('job-1', true, $externalUrl, 'pending');
     }
 }
 

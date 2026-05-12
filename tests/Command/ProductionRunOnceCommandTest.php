@@ -269,10 +269,10 @@ final readonly class ProductionRawArticleSender implements MainApiRawArticleSend
         \DateTimeImmutable $fetchedAt,
     ): SendRawArticleResult {
         return new SendRawArticleResult(
-            id: '0196a444-4444-7444-8444-444444444444',
-            created: true,
+            jobId: '0196a444-4444-7444-8444-444444444444',
+            accepted: true,
             externalUrl: $externalUrl,
-            contentHash: 'content-hash',
+            status: 'pending',
         );
     }
 }

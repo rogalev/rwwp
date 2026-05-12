@@ -63,7 +63,7 @@ final readonly class MainApiRawArticleClient implements MainApiRawArticleSenderI
             'bodyPreview' => $body,
         ]);
 
-        if ($statusCode !== 200 && $statusCode !== 201) {
+        if ($statusCode !== 202) {
             throw MainApiRequestFailed::forUnexpectedStatus($statusCode, $body);
         }
 
@@ -73,10 +73,10 @@ final readonly class MainApiRawArticleClient implements MainApiRawArticleSenderI
         }
 
         return new SendRawArticleResult(
-            $this->readString($payload, 'id'),
-            $this->readBool($payload, 'created'),
+            $this->readString($payload, 'jobId'),
+            $this->readBool($payload, 'accepted'),
             $this->readString($payload, 'externalUrl'),
-            $this->readString($payload, 'contentHash'),
+            $this->readString($payload, 'status'),
         );
     }
 

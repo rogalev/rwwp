@@ -18,10 +18,10 @@ final class MainRawArticleSendCommandTest extends TestCase
     {
         $htmlFile = $this->createHtmlFile('<html>Article</html>');
         $sender = new RecordingRawArticleSender(new SendRawArticleResult(
-            id: '0196a333-3333-7333-8333-333333333333',
-            created: true,
+            jobId: '019e1c71-f428-71fb-a5f3-8928907980cc',
+            accepted: true,
             externalUrl: 'https://example.com/news/1',
-            contentHash: 'content-hash',
+            status: 'pending',
         ));
         $commandTester = new CommandTester(new MainRawArticleSendCommand($sender));
 
@@ -39,17 +39,17 @@ final class MainRawArticleSendCommandTest extends TestCase
         self::assertSame('<html>Article</html>', $sender->rawHtml);
         self::assertSame(200, $sender->httpStatusCode);
         self::assertSame('2026-04-30T10:00:00+00:00', $sender->fetchedAt?->format(\DateTimeInterface::ATOM));
-        self::assertStringContainsString('0196a333-3333-7333-8333-333333333333', $commandTester->getDisplay());
-        self::assertStringContainsString('content-hash', $commandTester->getDisplay());
+        self::assertStringContainsString('019e1c71-f428-71fb-a5f3-8928907980cc', $commandTester->getDisplay());
+        self::assertStringContainsString('pending', $commandTester->getDisplay());
     }
 
     public function testFailsWhenHtmlFileIsNotReadable(): void
     {
         $commandTester = new CommandTester(new MainRawArticleSendCommand(new RecordingRawArticleSender(new SendRawArticleResult(
-            id: 'not-used',
-            created: false,
+            jobId: 'not-used',
+            accepted: false,
             externalUrl: 'not-used',
-            contentHash: 'not-used',
+            status: 'not-used',
         ))));
 
         $exitCode = $commandTester->execute([
